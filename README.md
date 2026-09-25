@@ -22,13 +22,19 @@ Linux / macOS:
 
 Windows (PowerShell):
 
-    scripts\make.ps1
+    powershell -ExecutionPolicy Bypass -File .\scripts\make.ps1
+
+Windows disables running PowerShell scripts by default, so the command above
+bypasses that policy for this one run without changing any setting. Run it from
+an open terminal (not by double-clicking) so errors stay visible. To allow local
+scripts permanently for your user, run
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` and then `.\scripts\make.ps1`.
 
 Outputs: `extern/tyra/engine/bin/libtyra.a` and `bin/libimpression.a`. Games
-link both. Arguments are passed to make, e.g. `scripts/make.sh clean` (framework
-objects) or `scripts/make.sh clean-tyra` (Tyra's objects and library).
+link both. Arguments are passed to make: `scripts/make.sh tyra` builds only
+Tyra's library, `scripts/make.sh clean` cleans the framework's objects, and
+`scripts/make.sh clean-tyra` cleans Tyra's.
 
-`scripts/build-tyra.sh` / `.ps1` build only Tyra's library, with extra checks.
 The toolchain image is pinned in `docker-compose.yml`.
 
 ## License
