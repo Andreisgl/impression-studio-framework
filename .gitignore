@@ -31,3 +31,5 @@ Thumbs.db
 # Emulator and debug artifacts
 *.log
 crash.txt
+# Per-machine tool configuration (PCSX2 path etc.; see impression.local.conf.example)
+impression.local.conf

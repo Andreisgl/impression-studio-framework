@@ -37,6 +37,21 @@ Tyra's library, `scripts/make.sh clean` cleans the framework's objects, and
 
 The toolchain image is pinned in `docker-compose.yml`.
 
+## Building and running a project
+
+Copy `impression.local.conf.example` to `impression.local.conf` and set
+`PCSX2_PATH` (the file is ignored by git). Then, from the repository root:
+
+    scripts/build-project.sh examples/hello
+    scripts/run-project.sh examples/hello
+
+On Windows use `powershell -ExecutionPolicy Bypass -File .\scripts\build-project.ps1 examples/hello`
+and the same form for `run-project.ps1` (options are `-Build`, `-Restart`,
+`-Wait`, `-DryRun`). `run-project --build` builds and runs in one step.
+
+These scripts are also the interface the future GUI editor uses; exit codes and
+output lines are specified in [docs/tooling-contract.md](docs/tooling-contract.md).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

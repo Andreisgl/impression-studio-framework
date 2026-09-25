@@ -10,17 +10,24 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 1; }
-docker compose version >/dev/null 2>&1 || { echo "error: 'docker compose' plugin not available" >&2; exit 1; }
+# Exit 3 = environment problem (see docs/tooling-contract.md).
+command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 3; }
+docker compose version >/dev/null 2>&1 || { echo "error: 'docker compose' plugin not available" >&2; exit 3; }
 
 git submodule update --init --recursive
 
 if [ ! -f extern/tyra/Makefile.base ]; then
     echo "error: extern/tyra is empty; submodule checkout failed" >&2
-    exit 1
+    exit 3
 fi
 
-docker compose run --rm -T toolchain make "$@"
+status=0
+docker compose run --rm -T toolchain make "$@" || status=$?
+# make's own failure code is 2, which would collide with "usage"; report 1.
+if [ "$status" -ne 0 ]; then
+    echo "error: make failed (exit code $status)" >&2
+    exit 1
+fi
 
 if [ "$#" -eq 0 ]; then
     for lib in extern/tyra/engine/bin/libtyra.a bin/libimpression.a; do
