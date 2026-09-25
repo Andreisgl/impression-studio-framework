@@ -12,20 +12,24 @@ It is an independent project and is not affiliated with the Tyra author.
 
 Prerequisites: Git and Docker (with the `docker compose` plugin).
 
-Build Tyra's engine library once per clone. Rebuild only after the Tyra submodule
-changes; `make` only recompiles what changed.
+One command builds everything. It runs `make` inside the pinned toolchain
+container, builds Tyra's engine library first (a no-op when it is already up to
+date), then the framework:
 
 Linux / macOS:
 
-    scripts/build-tyra.sh
+    scripts/make.sh
 
 Windows (PowerShell):
 
-    scripts\build-tyra.ps1
+    scripts\make.ps1
 
-Add `--clean` (or `-Clean` on Windows) to rebuild from scratch. The result is
-`extern/tyra/engine/bin/libtyra.a`. The toolchain image is pinned in
-`docker-compose.yml`.
+Outputs: `extern/tyra/engine/bin/libtyra.a` and `bin/libimpression.a`. Games
+link both. Arguments are passed to make, e.g. `scripts/make.sh clean` (framework
+objects) or `scripts/make.sh clean-tyra` (Tyra's objects and library).
+
+`scripts/build-tyra.sh` / `.ps1` build only Tyra's library, with extra checks.
+The toolchain image is pinned in `docker-compose.yml`.
 
 ## License
 
