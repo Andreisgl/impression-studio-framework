@@ -1,0 +1,15 @@
+# Copyright 2026 Andrei Segal
+# SPDX-License-Identifier: Apache-2.0
+
+# Build toolchain for Impression Studio: PS2DEV + vcl/vclpp/dvp, as packaged by Tyra.
+# The image is pinned by digest so every machine builds with the same compiler.
+# To move to a newer image: docker pull h4570/tyra, read the new digest from the
+# output, and replace it below.
+services:
+  toolchain:
+    image: h4570/tyra@sha256:1fa117cbd140b3e6506a41654fb1476c73c568ed1522a6470744eee50fab525f
+    # The image is x86-64 only (vcl is a 32-bit x86 binary run through qemu).
+    platform: linux/amd64
+    working_dir: /work
+    volumes:
+      - .:/work
