@@ -15,4 +15,5 @@ class HelloGame : public Tyra::Game {
 
  private:
   Tyra::Engine* engine;
+  unsigned frames;
 };

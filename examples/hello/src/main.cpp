@@ -6,7 +6,12 @@
 #include "hello_game.hpp"
 
 int main() {
-  Tyra::Engine engine;
+  // Log to <elf folder>/log.txt instead of the console, so the output is
+  // available without any emulator console setting.
+  Tyra::EngineOptions options;
+  options.writeLogsToFile = true;
+
+  Tyra::Engine engine(options);
   HelloGame game(&engine);
   engine.run(&game);
   return 0;

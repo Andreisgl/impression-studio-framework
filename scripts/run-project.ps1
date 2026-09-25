@@ -69,6 +69,9 @@ if ($DryRun) {
     exit 0
 }
 
+# Tyra appends to bin/log.txt across runs; start each run with a fresh log.
+Remove-Item -LiteralPath (Join-Path $proj.Abs 'bin\log.txt') -Force -ErrorAction SilentlyContinue
+
 if ($Restart) {
     Get-Process -Name $emuName -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 800

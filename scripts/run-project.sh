@@ -83,6 +83,9 @@ if [ "$dry_run" -eq 1 ]; then
     exit 0
 fi
 
+# Tyra appends to bin/log.txt across runs; start each run with a fresh log.
+rm -f "$PROJECT_ABS/bin/log.txt"
+
 if [ "$restart" -eq 1 ]; then
     pkill -f -- "$emu" || true
     sleep 1

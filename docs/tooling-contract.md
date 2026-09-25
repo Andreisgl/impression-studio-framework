@@ -59,6 +59,17 @@ that has a `Makefile` (for example `examples/hello`).
 - Build first and run in one step with `--build` (equivalent to running
   `build-project` and then `run-project`).
 
+## Game log
+
+Games should create their engine with `EngineOptions::writeLogsToFile = true`
+(see `examples/hello/src/main.cpp`). `TYRA_LOG` output then goes to
+`<project>/bin/log.txt`, which a GUI can tail for a log pane. `run-project`
+deletes the previous `log.txt` before each launch (Tyra appends across runs).
+
+Without that option, `TYRA_LOG` writes to stdout, and in testing with PCSX2 2.6.3
+that output did not reach PCSX2's log even with EE Console enabled. Do not rely
+on the emulator console for game output.
+
 ## Configuration
 
 Machine-specific settings live in `impression.local.conf` at the repository root
