@@ -1,0 +1,10 @@
+# TODO
+
+## Tooling
+- [ ] **Projects outside this repo.** Projects must live inside this repo (like `examples/hello`), because the container mounts only the repo root (`docker-compose.yml`: `.:/work`). External game repos will need a design decision later, probably each carrying the framework as a submodule. Decide before the GUI opens user projects. (`scripts/lib/common.*` `resolve_project` currently rejects paths outside the repo.)
+- [ ] **Real-time program output.** Live output is integral to the development cycle. Current state: `TYRA_LOG` goes to stdout by default and never reaches PCSX2's log (tested on PCSX2 2.6.3, even with `EnableEEConsole = true`). Workaround in use: `EngineOptions::writeLogsToFile = true` writes `<project>/bin/log.txt`, and measured behaviour is real time (a new line appears in the file as it is logged, checked at 0.5 s polling). Open work:
+  - [ ] Make file logging the documented default for projects, and have `run-project` / the GUI tail `bin/log.txt` live (`Get-Content -Wait` / `tail -f`). Verify it keeps up with high log volume (an unthrottled loop produced 260 KB in 30 s).
+  - [ ] Find out why stdout output is lost. Leading suspect: Tyra resets the IOP (`SifIopReset` in `engine/src/irx/irx_loader.cpp`) and loads its own modules including `iomanX`/`fileXio`; ps2sdk's known issue where printf stops showing in PCSX2 once fileXio is in use ([ps2dev/ps2sdk#332](https://github.com/ps2dev/ps2sdk/issues/332)). Tyra does not call `fileXioInit()` itself, so this is unconfirmed. Try: PCSX2 IOP console, an EE interpreter run, redirecting stdout to EE SIO (`libc_set_stdout`-style hook, see [ps2dev/ps2sdk#161](https://github.com/ps2dev/ps2sdk/issues/161)).
+  - [ ] Consider PCSX2's `-logfile <path>` and `-batch` flags (via `PCSX2_ARGS`) so the emulator's own log also lands in a known file.
+  - [ ] If a core patch is needed, make it in the Tyra fork on its own branch and consider an upstream issue.
+  - [ ] Add a note about `bin/log.txt` and logging setup to the README.
