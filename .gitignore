@@ -1,0 +1,33 @@
+# Build output
+obj/
+bin/
+*.o
+*.d
+*.a
+*.elf
+*.elf.sym
+*.map
+*.iso
+*.bin
+
+# Host-side test builds
+build/
+build-*/
+cmake-build-*/
+
+# Docker / local overrides (per machine, never shared)
+.env
+docker-compose.override.yml
+
+# Editors and OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Emulator and debug artifacts
+*.log
+crash.txt
