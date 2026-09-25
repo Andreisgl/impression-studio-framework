@@ -1,0 +1,3 @@
+[submodule "extern/tyra"]
+	path = extern/tyra
+	url = https://github.com/Andreisgl/tyra.git
