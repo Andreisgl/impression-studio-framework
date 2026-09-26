@@ -14,9 +14,21 @@ EXIT_ENV=3    # environment problem: docker, git or PCSX2 missing or misconfigur
 # Git Bash on Windows would otherwise rewrite container paths passed to docker.
 export MSYS_NO_PATHCONV=1
 
+# Toolchain flavour. The default is the source-built July 2022 snapshot; setting
+# IMPRESSION_TOOLCHAIN=modern selects the current official ps2dev image, used while
+# porting the Tyra fork (docker/Dockerfile.modern). Each has its own container.
 IMAGE_BASE="impression/ps2dev:2022-07"
 IMAGE="impression/toolchain:dev"
 CONTAINER="impression-dev"
+IMAGE_DOCKERFILE="docker/Dockerfile"
+IMAGE_CONTEXT="extern/tyra/assets"
+if [ "${IMPRESSION_TOOLCHAIN:-}" = "modern" ]; then
+    IMAGE_BASE=""
+    IMAGE="impression/toolchain:modern"
+    CONTAINER="impression-dev-modern"
+    IMAGE_DOCKERFILE="docker/Dockerfile.modern"
+    IMAGE_CONTEXT="docker"
+fi
 
 # die <exit-code> <message...>: message to stderr, then exit.
 die() {
@@ -79,18 +91,28 @@ need_docker() {
 # one-time build from source and takes a long time; progress goes to stderr so
 # stdout stays clean for tools.
 ensure_images() {
-    if ! docker image inspect "$IMAGE_BASE" >/dev/null 2>&1; then
+    if [ -n "$IMAGE_BASE" ] && ! docker image inspect "$IMAGE_BASE" >/dev/null 2>&1; then
         echo "Building the PS2DEV toolchain image (one time, this takes a long while)..." >&2
         docker build -f "$IMPRESSION_ROOT/docker/Dockerfile.ps2dev" -t "$IMAGE_BASE" "$IMPRESSION_ROOT/docker" >&2 ||
             die "$EXIT_ENV" "building $IMAGE_BASE failed"
     fi
     if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-        git -C "$IMPRESSION_ROOT" submodule update --init --recursive >&2 || die "$EXIT_ENV" "git submodule update failed"
-        [ -f "$IMPRESSION_ROOT/extern/tyra/assets/vcl" ] || die "$EXIT_ENV" "extern/tyra/assets/vcl is missing (submodule not checked out)"
+        update_submodules
+        if [ -z "$IMAGE_BASE" ] || [ -f "$IMPRESSION_ROOT/$IMAGE_CONTEXT/vcl" ]; then :; else
+            die "$EXIT_ENV" "$IMAGE_CONTEXT/vcl is missing (submodule not checked out)"
+        fi
         echo "Building the toolchain image $IMAGE..." >&2
-        docker build -f "$IMPRESSION_ROOT/docker/Dockerfile" -t "$IMAGE" "$IMPRESSION_ROOT/extern/tyra/assets" >&2 ||
+        docker build -f "$IMPRESSION_ROOT/$IMAGE_DOCKERFILE" -t "$IMAGE" "$IMPRESSION_ROOT/$IMAGE_CONTEXT" >&2 ||
             die "$EXIT_ENV" "building $IMAGE failed"
     fi
+}
+
+# update_submodules: checks the Tyra submodule out when it is missing. An existing
+# checkout is left alone: `submodule update` would reset a fork branch you are
+# working on (or fail on uncommitted changes).
+update_submodules() {
+    [ -f "$IMPRESSION_ROOT/extern/tyra/Makefile.base" ] && return 0
+    git -C "$IMPRESSION_ROOT" submodule update --init --recursive >&2 || die "$EXIT_ENV" "git submodule update failed"
 }
 
 # ensure_container: makes sure the long-lived container is running with the right
@@ -99,7 +121,7 @@ ensure_images() {
 ensure_container() {
     need_docker
     ensure_images
-    git -C "$IMPRESSION_ROOT" submodule update --init --recursive >&2 || die "$EXIT_ENV" "git submodule update failed"
+    update_submodules
 
     local image_id signature current running
     image_id="$(docker image inspect -f '{{.Id}}' "$IMAGE")"

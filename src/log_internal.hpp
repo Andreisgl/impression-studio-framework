@@ -15,6 +15,7 @@ namespace detail {
 void serialInit();
 void serialWrite(const char* data, size_t length);
 void installStdoutHook();
+bool stdoutRedirected();
 
 /** Implemented in log.cpp: sends raw text to every enabled sink. */
 void routeRaw(const char* data, size_t length);

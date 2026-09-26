@@ -11,9 +11,21 @@ $script:ExitFail = 1   # the build or launch itself failed
 $script:ExitUsage = 2  # bad arguments, unknown project, missing or ambiguous ELF
 $script:ExitEnv = 3    # environment problem: docker, git or PCSX2 missing or misconfigured
 
+# Toolchain flavour. The default is the source-built July 2022 snapshot; setting
+# IMPRESSION_TOOLCHAIN=modern selects the current official ps2dev image, used while
+# porting the Tyra fork (docker/Dockerfile.modern). Each has its own container.
 $script:ImageBase = 'impression/ps2dev:2022-07'
 $script:Image = 'impression/toolchain:dev'
 $script:Container = 'impression-dev'
+$script:ImageDockerfile = 'docker\Dockerfile'
+$script:ImageContext = 'extern\tyra\assets'
+if ($env:IMPRESSION_TOOLCHAIN -eq 'modern') {
+    $script:ImageBase = ''
+    $script:Image = 'impression/toolchain:modern'
+    $script:Container = 'impression-dev-modern'
+    $script:ImageDockerfile = 'docker\Dockerfile.modern'
+    $script:ImageContext = 'docker'
+}
 
 # Stop-Script <exit-code> <message>: message to stderr, then exit.
 function Stop-Script {
@@ -87,8 +99,12 @@ function Test-DockerImage {
     return ($LASTEXITCODE -eq 0)
 }
 
+# Checks the Tyra submodule out when it is missing. An existing checkout is left alone:
+# `submodule update` would reset a fork branch you are working on (or fail on
+# uncommitted changes).
 function Update-Submodules {
     $ErrorActionPreference = 'Continue'  # native stderr must not abort; exit codes are checked
+    if (Test-Path -LiteralPath (Join-Path $script:ImpressionRoot 'extern\tyra\Makefile.base')) { return }
     git -C $script:ImpressionRoot submodule update --init --recursive
     if ($LASTEXITCODE -ne 0) { Stop-Script $script:ExitEnv 'git submodule update failed' }
 }
@@ -97,17 +113,17 @@ function Update-Submodules {
 # one-time build from source and takes a long time; its progress is printed.
 function Confirm-Images {
     $ErrorActionPreference = 'Continue'  # native stderr must not abort; exit codes are checked
-    if (-not (Test-DockerImage $script:ImageBase)) {
+    if ($script:ImageBase -and -not (Test-DockerImage $script:ImageBase)) {
         [Console]::Error.WriteLine('Building the PS2DEV toolchain image (one time, this takes a long while)...')
         docker build -f (Join-Path $script:ImpressionRoot 'docker\Dockerfile.ps2dev') -t $script:ImageBase (Join-Path $script:ImpressionRoot 'docker')
         if ($LASTEXITCODE -ne 0) { Stop-Script $script:ExitEnv "building $($script:ImageBase) failed" }
     }
     if (-not (Test-DockerImage $script:Image)) {
         Update-Submodules
-        $assets = Join-Path $script:ImpressionRoot 'extern\tyra\assets'
-        if (-not (Test-Path -LiteralPath (Join-Path $assets 'vcl'))) { Stop-Script $script:ExitEnv 'extern/tyra/assets/vcl is missing (submodule not checked out)' }
+        $context = Join-Path $script:ImpressionRoot $script:ImageContext
+        if ($script:ImageBase -and -not (Test-Path -LiteralPath (Join-Path $context 'vcl'))) { Stop-Script $script:ExitEnv "$($script:ImageContext)/vcl is missing (submodule not checked out)" }
         [Console]::Error.WriteLine("Building the toolchain image $($script:Image)...")
-        docker build -f (Join-Path $script:ImpressionRoot 'docker\Dockerfile') -t $script:Image $assets
+        docker build -f (Join-Path $script:ImpressionRoot $script:ImageDockerfile) -t $script:Image $context
         if ($LASTEXITCODE -ne 0) { Stop-Script $script:ExitEnv "building $($script:Image) failed" }
     }
 }

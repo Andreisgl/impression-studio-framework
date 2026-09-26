@@ -45,10 +45,6 @@ clean-tyra:
 
 $(TARGET): tyra
 
-# log_serial.cpp reaches libc's _ps2sdk_write, which is outside the gp-relative
-# small-data area; it must not be compiled with gp-relative access to externs.
-$(BUILDDIR)/log_serial.$(OBJEXT): CFLAGS += -G0
-
 # Static library instead of an executable (same override Tyra's engine/Makefile uses).
 $(TARGET): $(OBJECTS) $(VCL_OBJECTS) $(VU_OBJECTS_VCL) $(VU_OBJECTS_VSM) $(IRXEM_OBJECTS)
 	$(AR) rcs $(TARGETDIR)/$(TARGET) $(OBJECTS) $(VCL_OBJECTS) $(VU_OBJECTS_VCL) $(VU_OBJECTS_VSM) $(IRXEM_OBJECTS)

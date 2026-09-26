@@ -1,0 +1,29 @@
+# Copyright 2026 Andrei Segal
+# SPDX-License-Identifier: Apache-2.0
+
+# Toolchain image on the current, official ps2dev image (Alpine, GCC 15, ps2sdk 2.x,
+# with openvcl and masp built in), for the ported Tyra fork. Replaces the source-built
+# July 2022 snapshot (Dockerfile.ps2dev) once the port is validated.
+#   docker build -f docker/Dockerfile.modern -t impression/toolchain:modern docker
+#
+# Additions to the official image: the GNU userland Tyra's Makefile.base needs, the
+# C++ runtime openvcl needs (the official image ships openvcl without it), and vclpp,
+# the preprocessor for Tyra's VU sources (#macro, #include, #define), which the
+# official image does not include. No proprietary tool is used: the VU pipeline is
+# vclpp -> openvcl -> dvp-as.
+
+ARG PS2DEV_IMAGE=ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336
+
+FROM ${PS2DEV_IMAGE} AS vclpp-build
+RUN apk add --no-cache g++ make git
+COPY fetch-at.sh /usr/local/bin/fetch-at
+RUN chmod +x /usr/local/bin/fetch-at \
+    && fetch-at https://github.com/glampert/vclpp 6d787b640efaf793f5993ded336951e4136dc3d3 /vclpp \
+    && cd /vclpp && make
+
+FROM ${PS2DEV_IMAGE}
+RUN apk add --no-cache bash make git coreutils findutils sed grep libstdc++ libgcc
+COPY --from=vclpp-build /vclpp/vclpp /usr/local/bin/vclpp
+
+WORKDIR /project
+CMD ["sleep", "infinity"]

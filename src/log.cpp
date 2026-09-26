@@ -4,6 +4,7 @@
 #include "impression/log.hpp"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -157,6 +158,18 @@ void flush() {
   if (file != nullptr) {
     fwrite(fileBuffer, 1, fileLength, file);
     fclose(file);
+  } else if (config.serial) {
+    // Say why the file is missing, once, on the serial console (not through the
+    // log itself: this is the log's own file sink failing).
+    static bool reported = false;
+    if (!reported) {
+      reported = true;
+      char note[256];
+      int n = snprintf(note, sizeof(note),
+                       "[Impression] cannot open log file '%s' (errno %d); file logging is off\n",
+                       path.c_str(), errno);
+      if (n > 0) detail::serialWrite(note, static_cast<size_t>(n) < sizeof(note) ? static_cast<size_t>(n) : sizeof(note) - 1);
+    }
   }
   fileLength = 0;  // dropped if the file could not be opened; never grow unbounded
   flushing = false;
