@@ -52,6 +52,15 @@ and the same form for `run-project.ps1` (options are `-Build`, `-Restart`,
 These scripts are also the interface the future GUI editor uses; exit codes and
 output lines are specified in [docs/tooling-contract.md](docs/tooling-contract.md).
 
+## Logging
+
+`inc/impression/log.hpp` provides `IMP_LOG(Category, Level, "format", args...)`
+with per-category levels (compile-time floor plus runtime `Log::setLevel`).
+Output goes live to PCSX2's EE console (enable `EnableEEConsole` in PCSX2's
+`[Logging]` settings) and to `<project>/bin/log.txt`. Tyra's own `TYRA_LOG`
+lines are captured too. See `examples/hello` and
+[docs/tooling-contract.md](docs/tooling-contract.md).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

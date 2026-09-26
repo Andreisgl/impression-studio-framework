@@ -61,14 +61,39 @@ that has a `Makefile` (for example `examples/hello`).
 
 ## Game log
 
-Games should create their engine with `EngineOptions::writeLogsToFile = true`
-(see `examples/hello/src/main.cpp`). `TYRA_LOG` output then goes to
-`<project>/bin/log.txt`, which a GUI can tail for a log pane. `run-project`
-deletes the previous `log.txt` before each launch (Tyra appends across runs).
+Games use the Impression logging layer (`inc/impression/log.hpp`, see
+`examples/hello`): call `Impression::Log::init()` before creating the Tyra
+`Engine`, then log with `IMP_LOG(Category, Level, "printf format", args...)`.
 
-Without that option, `TYRA_LOG` writes to stdout, and in testing with PCSX2 2.6.3
-that output did not reach PCSX2's log even with EE Console enabled. Do not rely
-on the emulator console for game output.
+**Line format** (stable; parse this):
+
+    [Category][Level] message
+
+`Level` is one of `Verbose`, `Debug`, `Info`, `Warning`, `Error`. Lines without
+a bracket prefix come from raw stdout, mainly Tyra's own `TYRA_LOG` output
+(`LOG: ...`) and its startup banner; show them as generic engine output.
+
+**Two sinks, both on by default** (`LogConfig`):
+
+| Sink | Where | Timing |
+|---|---|---|
+| Serial | PCSX2's console / `emulog.txt` (needs `EnableEEConsole = true` in PCSX2) | live, per line |
+| File | `<project>/bin/log.txt` | buffered, flushed by `Log::flush()` (call it every frame; free when idle) and immediately on every `Error` |
+
+`run-project` deletes the previous `log.txt` before each launch, so a GUI can
+tail the file for a log pane. With `hookStdout` (default) libc's stdout is
+redirected into the same sinks, so `printf` and `TYRA_LOG` show up too; keep
+Tyra's own `EngineOptions::writeLogsToFile` off in that case.
+
+**Filtering.** Levels below `IMP_LOG_MIN_LEVEL` are compiled out (default: all
+in debug builds, Warning and above with `NDEBUG`); their arguments are not
+evaluated. The rest are filtered per category at runtime:
+`Impression::Log::setLevel("Player", LogLevel::Verbose)` or
+`Impression::Log::applySpec("Player=Warning,Physics=Verbose")`.
+
+**Limits.** Not thread-safe (log from the main thread). Messages longer than 512
+bytes are truncated. On real hardware, serial output is slow (38400 baud) and
+the `host:` log file does not exist; disable sinks through `LogConfig`.
 
 ## Configuration
 

@@ -4,14 +4,15 @@
 #include <tyra>
 
 #include "hello_game.hpp"
+#include "impression/log.hpp"
 
 int main() {
-  // Log to <elf folder>/log.txt instead of the console, so the output is
-  // available without any emulator console setting.
-  Tyra::EngineOptions options;
-  options.writeLogsToFile = true;
+  // Before the Engine, so its startup messages are captured too. The logging
+  // layer writes <elf folder>/log.txt and the EE serial console, so Tyra's own
+  // file logging stays off (the default).
+  Impression::Log::init();
 
-  Tyra::Engine engine(options);
+  Tyra::Engine engine;
   HelloGame game(&engine);
   engine.run(&game);
   return 0;
