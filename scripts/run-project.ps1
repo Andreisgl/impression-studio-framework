@@ -1,9 +1,9 @@
 # Copyright 2026 Andrei Segal
 # SPDX-License-Identifier: Apache-2.0
 
-# Runs a project's ELF in PCSX2. The emulator location comes from PCSX2_PATH in
-# impression.local.conf (or the environment). Does not build unless asked.
-# Usage: scripts\run-project.ps1 <project-dir> [-Build] [-Restart] [-Wait] [-DryRun]
+# Runs a project's ELF in PCSX2 on the host. The emulator location comes from
+# PCSX2_PATH in impression.local.conf (or the environment). Does not build unless asked.
+# Usage: scripts\run-project.ps1 [project-dir] [-Build] [-Restart] [-Wait] [-DryRun]
 #   -Build    build the project first (same as build-project.ps1)
 #   -Restart  stop a running instance of the same emulator first
 #   -Wait     stay in the foreground until the emulator exits (default: detach)
@@ -33,13 +33,13 @@ if ([string]::IsNullOrEmpty($pcsx2Path)) {
     Stop-Script $script:ExitEnv 'PCSX2_PATH is not set. Copy impression.local.conf.example to impression.local.conf and set it.'
 }
 
-$proj = Resolve-ImpressionProject $Project
+$projectAbs = Resolve-ImpressionProject $Project $config
 
 if ($Build) {
-    & (Join-Path $PSScriptRoot 'build-project.ps1') $proj.Rel
+    & (Join-Path $PSScriptRoot 'build-project.ps1') $projectAbs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
-$elf = Find-ImpressionElf $proj.Abs
+$elf = Find-ImpressionElf $projectAbs
 
 # Locate the emulator: PCSX2_PATH is either the executable or its directory.
 $emu = $null
@@ -70,7 +70,7 @@ if ($DryRun) {
 }
 
 # Tyra appends to bin/log.txt across runs; start each run with a fresh log.
-Remove-Item -LiteralPath (Join-Path $proj.Abs 'bin\log.txt') -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath (Join-Path $projectAbs 'bin\log.txt') -Force -ErrorAction SilentlyContinue
 
 if ($Restart) {
     Get-Process -Name $emuName -ErrorAction SilentlyContinue | Stop-Process -Force

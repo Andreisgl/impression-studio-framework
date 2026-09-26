@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Impression: build and run",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "scripts/run-project.sh --build --restart",
+      "windows": {
+        "command": "scripts\\run-project.cmd -Build -Restart"
+      }
+    },
+    {
+      "name": "Impression: build and run (choose project folder)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "scripts/run-project.sh \"${input:projectFolder}\" --build --restart",
+      "windows": {
+        "command": "scripts\\run-project.cmd \"${input:projectFolder}\" -Build -Restart"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "projectFolder",
+      "type": "promptString",
+      "description": "Project folder (must contain a Makefile), relative to the repository or absolute",
+      "default": "examples/hello"
+    }
+  ]
+}

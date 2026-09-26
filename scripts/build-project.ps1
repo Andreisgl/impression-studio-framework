@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Builds a project completely (Tyra, the framework, then the project) inside the
-# toolchain container. Usage: scripts\build-project.ps1 <project-dir>
-# Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
+# toolchain container. Usage: scripts\build-project.ps1 [project-dir]
+# Without an argument the project is PROJECT_DIR from impression.local.conf, else
+# examples/hello. Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
 # On success the last stdout line is IMPRESSION_ELF=<absolute path to the ELF>.
 # See docs/tooling-contract.md.
 param(
@@ -15,23 +16,16 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\common.ps1')
 
 if ($Help) {
-    Get-Content $PSCommandPath -TotalCount 8 | Select-Object -Skip 3 | ForEach-Object { $_ -replace '^# ?', '' }
+    Get-Content $PSCommandPath -TotalCount 9 | Select-Object -Skip 3 | ForEach-Object { $_ -replace '^# ?', '' }
     exit 0
 }
 
-$proj = Resolve-ImpressionProject $Project
+$config = Get-ImpressionConfig
+$projectAbs = Resolve-ImpressionProject $Project $config
+Confirm-Container $projectAbs
 
-try {
-    & (Join-Path $PSScriptRoot 'make.ps1') -C $proj.Rel
-    $status = $LASTEXITCODE
-} catch {
-    [Console]::Error.WriteLine("error: $($_.Exception.Message)")
-    $status = $script:ExitFail
+# The container prints a project-relative path; tools get an absolute host path.
+Invoke-ContainerImp build | ForEach-Object {
+    if ($_ -match '^IMPRESSION_ELF=(.+)$') { "IMPRESSION_ELF=$projectAbs\" + ($Matches[1] -replace '/', '\') } else { $_ }
 }
-if ($status -ne 0) {
-    if ($status -eq $script:ExitEnv) { exit $script:ExitEnv }
-    Stop-Script $script:ExitFail "build failed for $($proj.Rel)"
-}
-
-$elf = Find-ImpressionElf $proj.Abs
-Write-Output "IMPRESSION_ELF=$elf"
+exit $LASTEXITCODE

@@ -1,0 +1,94 @@
+# Copyright 2026 Andrei Segal
+# SPDX-License-Identifier: Apache-2.0
+
+# PS2DEV toolchain rebuilt from source at a fixed July 2022 snapshot.
+#
+# Why a snapshot: Tyra's build needs ps2sdk's bin2s tool and was written against
+# GCC 11.3. Current ps2dev (built by Tyra's own Dockerfile, which clones master)
+# has no bin2s and ships GCC 15, so a fresh build of "latest" cannot build Tyra.
+# Every component below is pinned to the newest commit at or before
+# 2022-07-05 20:30 UTC, the date of the environment Tyra is known to work in.
+#
+# Slow (tens of minutes to over an hour) but rarely changes; Docker caches it.
+# Build:  docker build -f docker/Dockerfile.ps2dev -t impression/ps2dev:2022-07 docker
+# Only what Tyra needs is built from ps2sdk-ports (zlib and libpng), not every port.
+
+FROM ubuntu:20.04 AS build
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    ca-certificates git make g++ gcc binutils texinfo bison flex gettext \
+    libgmp3-dev libmpfr-dev libmpc-dev cmake wget patch zlib1g-dev libgsl-dev unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PS2DEV=/usr/local/ps2dev
+ENV PS2SDK=/usr/local/ps2dev/ps2sdk
+ENV GSKIT=/usr/local/ps2dev/gsKit
+ENV PATH=$PATH:/usr/local/ps2dev/bin:/usr/local/ps2dev/ee/bin:/usr/local/ps2dev/iop/bin:/usr/local/ps2dev/dvp/bin:/usr/local/ps2dev/ps2sdk/bin
+
+COPY fetch-at.sh /usr/local/bin/fetch-at
+COPY pin-sources.sh /usr/local/bin/pin-sources
+RUN chmod +x /usr/local/bin/fetch-at /usr/local/bin/pin-sources && mkdir -p "$PS2DEV"
+
+WORKDIR /build
+
+# Compilers and binutils for the three PS2 processors (DVP = vector units, IOP, EE).
+# The toolchain scripts fetch GCC, binutils and newlib by branch head, which has
+# moved since 2022 (newlib no longer builds with GCC 11.3); pin-sources rewrites
+# them to fetch the snapshot's exact commits instead.
+RUN fetch-at https://github.com/ps2dev/ps2toolchain-dvp df67b948f85b3a1f87d5f363354b1db10ecb7f4f dvp \
+    && pin-sources dvp/scripts && cd dvp && ./toolchain.sh
+RUN fetch-at https://github.com/ps2dev/ps2toolchain-iop 50e740182b5b3d0ea8dae6fa8d675fe29e721666 iop \
+    && pin-sources iop/scripts && cd iop && ./toolchain.sh
+RUN fetch-at https://github.com/ps2dev/ps2toolchain-ee cf3729269266aff97f5e73c94b6c2ae09ce0c204 ee \
+    && pin-sources ee/scripts && cd ee && ./toolchain.sh
+
+# ps2sdk. Built without -j: its Makefiles have missing dependencies (upstream note).
+RUN fetch-at https://github.com/ps2dev/ps2sdk 2553eee8ac2631b78d4b7a4437f099ce0a0b6a7b ps2sdk \
+    && cd ps2sdk && unset PS2SDKSRC \
+    && make --quiet clean && make --quiet && make --quiet install && make --quiet clean
+# gcc needs libcglue, libkernel and libcdvd from ps2sdk to link executables.
+RUN ln -sf "$PS2SDK/ee/lib/libcglue.a" "$PS2DEV/ee/mips64r5900el-ps2-elf/lib/libcglue.a" \
+    && ln -sf "$PS2SDK/ee/lib/libkernel.a" "$PS2DEV/ee/mips64r5900el-ps2-elf/lib/libkernel.a" \
+    && ln -sf "$PS2SDK/ee/lib/libcdvd.a" "$PS2DEV/ee/mips64r5900el-ps2-elf/lib/libcdvd.a"
+
+RUN fetch-at https://github.com/ps2dev/gskit a60a1adc147cdb86f50459fa6223443ae9c2dca2 gskit \
+    && cd gskit && make --quiet clean && make --quiet && make --quiet install && make --quiet clean
+
+# zlib and libpng only, with the same versions and options as ps2sdk-ports'
+# build-cmakelibs.sh (Tyra links -lpng -lz).
+RUN fetch-at https://github.com/ps2dev/ps2sdk-ports 9fa1a9289b19ac45292c3cddbc48a5df909b9497 ports \
+    && cp ports/ps2dev.cmake "$PS2SDK/" \
+    && mkdir ports/build && cd ports/build \
+    && git clone -q --depth 1 -b v1.2.11 https://github.com/madler/zlib \
+    && git clone -q --depth 1 -b v1.6.37 https://github.com/glennrp/libpng \
+    && OPTS="-Wno-dev -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_INSTALL_PREFIX=$PS2SDK/ports -DBUILD_SHARED_LIBS=OFF" \
+    && mkdir zlib/build && cd zlib/build \
+    && cmake $OPTS -DUNIX:BOOL=ON -G "Unix Makefiles" .. \
+    && make --quiet -j1 clean all install \
+    && cd ../.. && mkdir libpng/build && cd libpng/build \
+    && cmake $OPTS -DPNG_SHARED=OFF -DPNG_STATIC=ON -G "Unix Makefiles" .. \
+    && make --quiet -j"$(nproc)" clean all install
+
+# vclpp (VU assembly preprocessor), an old stable tool: last commit 2016.
+RUN fetch-at https://github.com/glampert/vclpp 6d787b640efaf793f5993ded336951e4136dc3d3 vclpp \
+    && cd vclpp && make && install -m 755 vclpp /usr/local/bin/vclpp
+
+# ---------------------------------------------------------------------------
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    ca-certificates git make libmpc-dev rsync \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PS2DEV=/usr/local/ps2dev
+ENV PS2SDK=/usr/local/ps2dev/ps2sdk
+ENV GSKIT=/usr/local/ps2dev/gsKit
+ENV PATH=$PATH:/usr/local/ps2dev/bin:/usr/local/ps2dev/ee/bin:/usr/local/ps2dev/iop/bin:/usr/local/ps2dev/dvp/bin:/usr/local/ps2dev/ps2sdk/bin
+
+COPY --from=build /usr/local/ps2dev /usr/local/ps2dev
+COPY --from=build /usr/local/bin/vclpp /usr/local/bin/vclpp
+
+WORKDIR /work
+CMD ["/bin/bash"]

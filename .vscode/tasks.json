@@ -1,0 +1,170 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Impression: build project",
+      "type": "shell",
+      "command": "scripts/build-project.sh",
+      "args": [],
+      "windows": {
+        "command": "scripts\\build-project.cmd",
+        "args": []
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Builds Tyra, the framework and the project in the toolchain container (PROJECT_DIR in impression.local.conf).",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Impression: run project",
+      "type": "shell",
+      "command": "scripts/run-project.sh",
+      "args": [
+        "--restart"
+      ],
+      "windows": {
+        "command": "scripts\\run-project.cmd",
+        "args": [
+          "-Restart"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Runs the already built ELF in PCSX2."
+    },
+    {
+      "label": "Impression: build and run project",
+      "type": "shell",
+      "command": "scripts/run-project.sh",
+      "args": [
+        "--build",
+        "--restart"
+      ],
+      "windows": {
+        "command": "scripts\\run-project.cmd",
+        "args": [
+          "-Build",
+          "-Restart"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Builds, then runs in PCSX2 (what F5 does)."
+    },
+    {
+      "label": "Impression: clean project",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "clean"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "clean"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Impression: build engine (Tyra)",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "build-engine"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "build-engine"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Impression: build framework",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "build-framework"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "build-framework"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Impression: start container",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "start"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "start"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Impression: stop container",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "stop"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "stop"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    }
+  ]
+}

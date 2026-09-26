@@ -10,3 +10,9 @@ PCSX2_PATH=
 # Optional extra command-line flags passed to PCSX2 before the ELF,
 # split on whitespace (no quoting). Example: PCSX2_ARGS=-batch
 PCSX2_ARGS=
+
+# The project the launchers build and run when no folder is given. Relative paths
+# are relative to this repository; any folder on your machine works (it is mounted
+# into the toolchain container at /project). It needs a Makefile that includes
+# $(IMPRESSION_HOME)/mk/project.mk, like examples/hello/Makefile. Default: examples/hello
+PROJECT_DIR=

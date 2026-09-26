@@ -12,17 +12,24 @@ this page as a stable interface; change it deliberately.
 
 ## Commands
 
-Windows commands are run as
-`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\<name>.ps1 ...`,
-Linux/macOS commands as `scripts/<name>.sh ...`. Paths are relative to the
-repository root or absolute; a project must be a subdirectory of this repository
-that has a `Makefile` (for example `examples/hello`).
+Windows commands are run as `scripts\<name>.cmd ...` (a shim that starts
+`<name>.ps1` with the execution policy bypassed for that one process), Linux and
+macOS commands as `scripts/<name>.sh ...`. All of them build and run the project in
+a long-lived toolchain container that they start (or recreate) when needed.
 
-| Purpose | Windows | Linux / macOS |
-|---|---|---|
-| Build a project completely (Tyra, framework, project) | `build-project.ps1 <project>` | `build-project.sh <project>` |
-| Run a project's ELF in PCSX2 | `run-project.ps1 <project> [-Build] [-Restart] [-Wait] [-DryRun]` | `run-project.sh <project> [--build] [--restart] [--wait] [--dry-run]` |
-| Raw make in the toolchain container | `make.ps1 [make args]` | `make.sh [make args]` |
+**Choosing the project.** An optional folder argument, else `PROJECT_DIR` in
+`impression.local.conf`, else `examples/hello`. A folder argument is relative to the
+current directory and `PROJECT_DIR` to the repository root; absolute paths work.
+The folder must contain a `Makefile` (exit 2 otherwise): it is used exactly as
+given, nothing is searched for. Inside the container the project is always
+`/project`. Changing the project recreates the container (a few seconds).
+
+| Purpose | Command |
+|---|---|
+| Build a project completely (Tyra, framework, project) | `build-project [project]` |
+| Run a project's ELF in PCSX2 on the host | `run-project [project] [--build] [--restart] [--wait] [--dry-run]` (PowerShell: `-Build -Restart -Wait -DryRun`) |
+| Raw make in the project folder | `make [make args]` |
+| Container and engine management | `imp [-p project] start\|stop\|restart\|status\|shell\|rebuild-image\|build\|clean\|build-engine\|clean-engine\|build-framework\|clean-framework` |
 
 ## Exit codes
 
@@ -31,7 +38,7 @@ that has a `Makefile` (for example `examples/hello`).
 | 0 | Success | continue |
 | 1 | The build or launch itself failed | show the build log |
 | 2 | Usage error: bad or missing project, no `.elf` found, more than one `.elf` | fix the request |
-| 3 | Environment problem: Docker or git missing, `PCSX2_PATH` unset or wrong | open the settings dialog |
+| 3 | Environment problem: Docker missing or not running, git or the Tyra submodule missing, an image failed to build, `PCSX2_PATH` unset or wrong | open the settings dialog |
 
 ## Output
 
@@ -106,6 +113,7 @@ safely.
 |---|---|
 | `PCSX2_PATH` | PCSX2 executable, or the folder containing it (required to run) |
 | `PCSX2_ARGS` | optional extra flags passed before the ELF, split on whitespace |
+| `PROJECT_DIR` | the project to build and run when no folder is given (default `examples/hello`) |
 
 An environment variable with the same name overrides the file for that one
 invocation. A GUI that keeps its own settings can therefore skip the file and set
@@ -117,7 +125,10 @@ invocation. A GUI that keeps its own settings can therefore skip the file and se
   `--elf=<file>`. The scripts pick by executable name and the presence of
   `qt.conf`, as TyraX does. Confirm any extra flags (such as `-batch`) against
   your PCSX2 version and put them in `PCSX2_ARGS`.
-- Long-running commands: `build-project` can take minutes on the first run. A GUI
-  should run it asynchronously and stream stdout to a log pane.
-- Projects outside this repository are not supported yet; the container mounts
-  only the repository root.
+- Long-running commands: the very first `build-project` builds the toolchain image
+  (tens of minutes, output goes to the terminal) and compiles Tyra and the framework;
+  later runs recompile only what changed. A GUI should run it asynchronously and
+  stream stdout to a log pane.
+- `IMPRESSION_ELF` is always an absolute host path; the container's own
+  project-relative path is translated by the launcher.
+- A folder outside this repository works as a project (it is mounted at `/project`).

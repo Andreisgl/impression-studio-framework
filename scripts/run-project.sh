@@ -2,9 +2,9 @@
 # Copyright 2026 Andrei Segal
 # SPDX-License-Identifier: Apache-2.0
 
-# Runs a project's ELF in PCSX2. The emulator location comes from PCSX2_PATH in
-# impression.local.conf (or the environment). Does not build unless asked.
-# Usage: scripts/run-project.sh <project-dir> [--build] [--restart] [--wait] [--dry-run]
+# Runs a project's ELF in PCSX2 on the host. The emulator location comes from
+# PCSX2_PATH in impression.local.conf (or the environment). Does not build unless asked.
+# Usage: scripts/run-project.sh [project-dir] [--build] [--restart] [--wait] [--dry-run]
 #   --build    build the project first (same as build-project.sh)
 #   --restart  stop a running instance of the same emulator first
 #   --wait     stay in the foreground until the emulator exits (default: detach)
@@ -20,7 +20,7 @@ project="" build=0 restart=0 wait_exit=0 dry_run=0
 for arg in "$@"; do
     case "$arg" in
         -h | --help)
-            sed -n '5,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '5,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         --build) build=1 ;;
@@ -41,7 +41,7 @@ load_config
 resolve_project "$project"
 
 if [ "$build" -eq 1 ]; then
-    "$IMPRESSION_ROOT/scripts/build-project.sh" "$PROJECT_REL" || exit $?
+    "$IMPRESSION_ROOT/scripts/build-project.sh" "$PROJECT_ABS" || exit $?
 fi
 find_elf
 

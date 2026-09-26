@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# Copyright 2026 Andrei Segal
+# SPDX-License-Identifier: Apache-2.0
+
+# The toolchain entry point, run INSIDE the container (the host launchers in
+# scripts/ call it with docker exec). One implementation for every host OS.
+#
+#   imp build            build the project in /project (Tyra and the framework
+#                        are built first when needed) and print IMPRESSION_ELF=
+#   imp clean            remove the project's build output
+#   imp make [args...]   run make in /project with the given arguments
+#   imp build-engine     build Tyra's engine library (libtyra.a)
+#   imp clean-engine     remove Tyra's build output
+#   imp build-framework  build the framework library (builds Tyra first)
+#   imp clean-framework  remove the framework's build output
+#
+# Layout: IMPRESSION_HOME holds the framework and extern/tyra (/work for framework
+# development, /impression in the SDK); the project is always mounted at /project.
+# Exit codes: 0 ok, 1 build failed, 2 usage or project error, 3 environment error.
+# Everything printed to stdout is build output, except the IMPRESSION_ELF= line.
+set -euo pipefail
+
+EXIT_FAIL=1
+EXIT_USAGE=2
+EXIT_ENV=3
+
+IMPRESSION_HOME="${IMPRESSION_HOME:-/work}"
+PROJECT_DIR=/project
+export IMPRESSION_HOME
+
+die() {
+    local code=$1
+    shift
+    echo "error: $*" >&2
+    exit "$code"
+}
+
+require_engine_sources() {
+    [ -f "$IMPRESSION_HOME/extern/tyra/Makefile.base" ] ||
+        die "$EXIT_ENV" "Tyra sources not found in $IMPRESSION_HOME/extern/tyra (run: git submodule update --init --recursive)"
+}
+
+require_project() {
+    [ -d "$PROJECT_DIR" ] || die "$EXIT_USAGE" "no project mounted at $PROJECT_DIR"
+    [ -f "$PROJECT_DIR/Makefile" ] || die "$EXIT_USAGE" "no Makefile in the project folder ($PROJECT_DIR)"
+}
+
+# run_make <dir> [make args...]: make's own failure code (2) would collide with
+# "usage", so any failure is reported as 1.
+run_make() {
+    local dir=$1
+    shift
+    local status=0
+    make -C "$dir" "$@" || status=$?
+    if [ "$status" -ne 0 ]; then
+        echo "error: make failed in $dir (exit code $status)" >&2
+        exit "$EXIT_FAIL"
+    fi
+}
+
+# Tyra commits two placeholder files (engine/bin/.gitignore, engine/obj/.gitignore:
+# "ignore everything here except this file") to keep those folders in git, and its
+# `cleaner` target deletes them, which would leave the submodule looking modified.
+# Recreate them byte for byte (the committed files use CRLF and have no final newline).
+restore_engine_placeholders() {
+    local engine="$IMPRESSION_HOME/extern/tyra/engine" dir
+    for dir in bin obj; do
+        mkdir -p "$engine/$dir"
+        printf '# Ignore everything in this directory\r\n*\r\n# Except this file\r\n!.gitignore' >"$engine/$dir/.gitignore"
+    done
+}
+
+# The project-relative path of the single ELF in bin/.
+print_elf() {
+    local found=()
+    shopt -s nullglob
+    found=("$PROJECT_DIR"/bin/*.elf)
+    shopt -u nullglob
+    [ "${#found[@]}" -ge 1 ] || die "$EXIT_USAGE" "no .elf in $PROJECT_DIR/bin after the build"
+    [ "${#found[@]}" -eq 1 ] || die "$EXIT_USAGE" "more than one .elf in $PROJECT_DIR/bin: ${found[*]}"
+    echo "IMPRESSION_ELF=bin/$(basename "${found[0]}")"
+}
+
+command=${1:-help}
+[ "$#" -eq 0 ] || shift
+
+case "$command" in
+    build)
+        require_engine_sources
+        require_project
+        run_make "$PROJECT_DIR"
+        print_elf
+        ;;
+    clean)
+        require_project
+        run_make "$PROJECT_DIR" cleaner
+        ;;
+    make)
+        require_engine_sources
+        require_project
+        run_make "$PROJECT_DIR" "$@"
+        ;;
+    build-engine)
+        require_engine_sources
+        run_make "$IMPRESSION_HOME/extern/tyra/engine"
+        ;;
+    clean-engine)
+        require_engine_sources
+        run_make "$IMPRESSION_HOME/extern/tyra/engine" cleaner
+        restore_engine_placeholders
+        ;;
+    build-framework)
+        require_engine_sources
+        run_make "$IMPRESSION_HOME"
+        ;;
+    clean-framework)
+        run_make "$IMPRESSION_HOME" clean
+        ;;
+    help | -h | --help)
+        sed -n '5,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        ;;
+    *)
+        die "$EXIT_USAGE" "unknown command: $command (try: imp help)"
+        ;;
+esac
