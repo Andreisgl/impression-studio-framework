@@ -50,7 +50,13 @@ die() {
 # it. Only known keys are read, and variables already set in the environment win,
 # so a tool can override the file per invocation.
 load_config() {
-    local file="$IMPRESSION_ROOT/impression.local.conf" line key value
+    local file="$IMPRESSION_ROOT/impression.local.conf"
+    local example="$IMPRESSION_ROOT/impression.local.conf.example"
+    local line key value
+    if [ ! -f "$file" ] && [ -f "$example" ]; then
+        cp "$example" "$file"
+        echo "Created impression.local.conf (from impression.local.conf.example). Edit it to set PCSX2_PATH before running a project." >&2
+    fi
     [ -f "$file" ] || return 0
     while IFS= read -r line || [ -n "$line" ]; do
         line="${line%$'\r'}"
@@ -72,14 +78,14 @@ load_config() {
 
 # resolve_project [path]: sets PROJECT_ABS. A path given as an argument is relative
 # to the current directory; PROJECT_DIR from the config is relative to the repo
-# root; with neither, the sample project examples/hello is used. Any folder on the
-# host works: the container mounts it at /project.
+# root; with neither, the framework's own project/ folder is used. Any folder on
+# the host works: the container mounts it at /project.
 resolve_project() {
     local path="${1:-}" base
     if [ -n "$path" ]; then
         base="$PWD"
     else
-        path="${PROJECT_DIR:-examples/hello}"
+        path="${PROJECT_DIR:-project}"
         base="$IMPRESSION_ROOT"
     fi
     case "$path" in

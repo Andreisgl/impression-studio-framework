@@ -18,11 +18,12 @@ macOS commands as `scripts/<name>.sh ...`. All of them build and run the project
 a long-lived toolchain container that they start (or recreate) when needed.
 
 **Choosing the project.** An optional folder argument, else `PROJECT_DIR` in
-`impression.local.conf`, else `examples/hello`. A folder argument is relative to the
-current directory and `PROJECT_DIR` to the repository root; absolute paths work.
-The folder must contain a `Makefile` (exit 2 otherwise): it is used exactly as
-given, nothing is searched for. Inside the container the project is always
-`/project`. Changing the project recreates the container (a few seconds).
+`impression.local.conf`, else `project/` at the repository root (seeded as a copy of
+`examples/hello`). A folder argument is relative to the current directory and
+`PROJECT_DIR` to the repository root; absolute paths work. The folder must contain
+a `Makefile` (exit 2 otherwise): it is used exactly as given, nothing is searched
+for. Inside the container the project is always `/project`. Changing the project
+recreates the container (a few seconds).
 
 | Purpose | Command |
 |---|---|
@@ -105,15 +106,19 @@ the `host:` log file does not exist; disable sinks through `LogConfig`.
 ## Configuration
 
 Machine-specific settings live in `impression.local.conf` at the repository root
-(ignored by git; start from `impression.local.conf.example`). It is plain
-`KEY=value` lines and is parsed, never executed, so a GUI can read and write it
-safely.
+(ignored by git). It is created automatically, from `impression.local.conf.example`,
+the first time any launcher runs (a one-line note is printed to stderr); nothing
+needs to be copied by hand. It is plain `KEY=value` lines and is parsed, never
+executed, so a GUI can read and write it safely. This auto-create step is meant to
+generalize to a future SDK flavour, where there is no repository checkout to copy
+the example from; see the TODO for the still-open question of where the file (and
+the PCSX2 path, which must stay a host setting) lives in that case.
 
 | Key | Meaning |
 |---|---|
 | `PCSX2_PATH` | PCSX2 executable, or the folder containing it (required to run) |
 | `PCSX2_ARGS` | optional extra flags passed before the ELF, split on whitespace |
-| `PROJECT_DIR` | the project to build and run when no folder is given (default `examples/hello`) |
+| `PROJECT_DIR` | overrides the default project (`project/`) when no folder argument is given |
 
 An environment variable with the same name overrides the file for that one
 invocation. A GUI that keeps its own settings can therefore skip the file and set

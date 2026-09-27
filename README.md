@@ -13,8 +13,9 @@ It is an independent project and is not affiliated with the Tyra author.
 Prerequisites: Git and Docker. Everything that compiles runs inside a toolchain
 container, so nothing else is installed on your machine.
 
-Copy `impression.local.conf.example` to `impression.local.conf` and set
-`PCSX2_PATH` (the file is ignored by git). Then, from the repository root:
+`impression.local.conf` is created automatically on first use (from
+`impression.local.conf.example`; the file itself is ignored by git). Open it and
+set `PCSX2_PATH` before running a project. Then, from the repository root:
 
     scripts/build-project.sh          # builds Tyra, the framework, then the project
     scripts/run-project.sh            # runs the project's ELF in PCSX2 on the host
@@ -48,10 +49,12 @@ needs `bin2s` and Sony's `vcl`. For that (or to reproduce the old environment) s
 (`docker/Dockerfile.ps2dev`, tens of minutes once) and has its own container. Any other
 value is an error. Details and status of the port: `docs/tyra-port-notes.md`.
 
-**Which project.** Any folder with a `Makefile` works; it is mounted into the
-container at `/project`. Choose it with `PROJECT_DIR` in `impression.local.conf`
-(default `examples/hello`), or pass a folder: `scripts/build-project.sh ~/games/mine`.
-A project's Makefile is two lines, see `examples/hello/Makefile`:
+**Which project.** The default is `project/` at the repository root (seeded as a
+copy of `examples/hello`; replace its sources with whatever you are developing).
+Any other folder with a `Makefile` also works, mounted into the container at
+`/project`: set `PROJECT_DIR` in `impression.local.conf`, or pass a folder,
+e.g. `scripts/build-project.sh ~/games/mine`. A project's Makefile is two lines,
+see `project/Makefile`:
 
     TARGET := game.elf
     include $(IMPRESSION_HOME)/mk/project.mk

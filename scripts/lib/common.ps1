@@ -51,6 +51,11 @@ function Get-ImpressionConfig {
     $keys = 'PCSX2_PATH', 'PCSX2_ARGS', 'PROJECT_DIR'
     $config = @{}
     $file = Join-Path $script:ImpressionRoot 'impression.local.conf'
+    $example = Join-Path $script:ImpressionRoot 'impression.local.conf.example'
+    if (-not (Test-Path -LiteralPath $file) -and (Test-Path -LiteralPath $example)) {
+        Copy-Item -LiteralPath $example -Destination $file
+        [Console]::Error.WriteLine('Created impression.local.conf (from impression.local.conf.example). Edit it to set PCSX2_PATH before running a project.')
+    }
     if (Test-Path -LiteralPath $file) {
         foreach ($line in Get-Content -LiteralPath $file) {
             $line = $line.Trim()
@@ -73,15 +78,16 @@ function Get-ImpressionConfig {
 
 # Resolve-ImpressionProject <path> <config>: returns the absolute project folder. A
 # path given as an argument is relative to the current directory; PROJECT_DIR from
-# the config is relative to the repo root; with neither, examples/hello is used. Any
-# folder on the host works: the container mounts it at /project.
+# the config is relative to the repo root; with neither, the framework's own
+# project/ folder is used. Any folder on the host works: the container mounts it
+# at /project.
 function Resolve-ImpressionProject {
     param([string]$Path, [hashtable]$Config)
     if (-not [string]::IsNullOrEmpty($Path)) {
         $base = (Get-Location).Path
     } else {
         $Path = $Config['PROJECT_DIR']
-        if ([string]::IsNullOrEmpty($Path)) { $Path = 'examples/hello' }
+        if ([string]::IsNullOrEmpty($Path)) { $Path = 'project' }
         $base = $script:ImpressionRoot
     }
     if (-not [IO.Path]::IsPathRooted($Path)) { $Path = Join-Path $base $Path }
