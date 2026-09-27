@@ -37,7 +37,7 @@ Until the port is validated, the repository still defaults to a source-built Jul
 | `dvp-as` | `ps2dev/binutils-gdb` ref `dvp-v2.45.1` | GPL | **Unmodified.** The 2022 snapshot used a 2.14-based `dvp-as`; the 2024 history of that branch shows assembler changes (default PIC), so behaviour may differ. |
 | `vclpp` | `github.com/glampert/vclpp` commit `6d787b6` (2016), built in `docker/Dockerfile.modern` | MIT | **Not part of ps2dev.** See section 5. |
 | Alpine packages | `bash make git coreutils findutils sed grep libstdc++ libgcc` | various | `libstdc++`/`libgcc` are needed because the image ships `openvcl` without its C++ runtime (verified: it fails to start without them). |
-| Tyra fork | `Andreisgl/tyra`, local branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c` and `0031aeb`, **not pushed**) | Apache 2.0 (stated in headers/README; the repo has no LICENSE file since 2022) | |
+| Tyra fork | `Andreisgl/tyra`, local branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c`, `0031aeb` and `b026f86`, **not pushed**) | Apache 2.0 (stated in headers/README; the repo has no LICENSE file since 2022) | |
 | Framework | this repository | Apache 2.0 | |
 
 ## 3. The VU program pipeline
@@ -72,7 +72,7 @@ has rendered yet.
 
 ## 4. Changes
 
-### 4.1 Tyra fork, branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c` and `0031aeb`)
+### 4.1 Tyra fork, branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c`, `0031aeb` and `b026f86`)
 
 1. **`Makefile.base`**: `BIN2S` becomes `BIN2C`; the `.irx-em` rule generates
    `X.o.c` with `bin2c <irx> <out.c> <label>` and compiles it with the EE `gcc`;
@@ -141,6 +141,25 @@ has rendered yet.
    `make -C tutorials/01-hello` and `make -C tutorials/05-animation` succeed using only
    that image. **Not verified:** rendering. The PS2DEV pin cannot simply be the
    `v2.0.0` tag, see section 6.
+9. **CI, compose, template, VS Code tasks and install docs** (commit `b026f86`): nothing
+   points at the `h4570/tyra` image any more (upstream project links remain). The
+   image is built from the fork's `Dockerfile` and tagged `tyra`. CI workflows
+   (`master-build.yml`, `pr-build-check.yml`) now run `docker build -t tyra .` and
+   execute every `make` inside it with `--user "$(id -u):$(id -g)"`, replacing
+   `container: h4570/tyra` and the `apt` steps. The `Dockerfile` gained `rsync` (the VS
+   Code tasks copy sources into the container with it; the official image lacks it,
+   the old one had it). `docker-compose.yml` builds the Dockerfile; `template/Dockerfile`
+   derives from the locally built `tyra` image; both VS Code task files start the log
+   listener from `tyra`; `docs/install` says `docker compose build` instead of
+   `docker pull`. **Verified:** `docker compose build`; the template image builds on
+   top of it; `rsync`, `killall`, `ps2client` and `adpenc` are present; the exact
+   commands from `pr-build-check.yml` (engine, tutorial 05, demo, serial, non-root,
+   clean copy) exit 0 with no errors (330 s). Earlier, all 11 tutorials and the demo
+   built from clean. **Not verified:** the workflows on GitHub Actions itself (the YAML
+   was edited structurally and read, not run or linted). **Left as is:** the template's
+   VS Code task still runs `git clone https://github.com/h4570/tyra.git` into `/tyra`,
+   i.e. the upstream engine without this port, and the install docs still clone
+   upstream; both need the fork's URL and branch once it is published.
 
 ### 4.2 This repository (commit `afe0ba7`)
 
