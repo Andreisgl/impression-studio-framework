@@ -14,15 +14,38 @@ EXIT_ENV=3    # environment problem: docker, git or PCSX2 missing or misconfigur
 # Git Bash on Windows would otherwise rewrite container paths passed to docker.
 export MSYS_NO_PATHCONV=1
 
+# to_native_path <path>: converts a host path for use as an argument to any native
+# program (docker, PCSX2, ...). Git Bash's own paths are POSIX-style, and it and
+# Docker Desktop's CLI both happen to recognize /<drive>/... paths (so
+# IMPRESSION_ROOT and a project under a drive letter have worked without this so
+# far), but not other Git Bash mappings such as /tmp/..., which resolves to some
+# real Windows path with no relation to a literal "/tmp" for a native program. This
+# bit PCSX2 too: an ELF path built from such a folder was rejected outright, where a
+# drive-letter one had always happened to work. Converting always, not just when it
+# looks necessary, is what makes an arbitrary project folder (as SDK_MODE needs)
+# safe. A no-op where there is no cygpath (Linux, macOS).
+to_native_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
 # Toolchain flavour. The default is the current official ps2dev image (GCC 15, openvcl;
 # docker/Dockerfile.modern), which the ported Tyra fork needs. IMPRESSION_TOOLCHAIN=snapshot
 # selects the source-built July 2022 snapshot (docker/Dockerfile.ps2dev), which only builds
-# the unported Tyra (upstream master). Each flavour has its own container.
+# the unported Tyra (upstream master). IMPRESSION_TOOLCHAIN=sdk selects the SDK image
+# (docker/Dockerfile.sdk: framework and Tyra baked in, prebuilt), for local testing of
+# the SDK experience against an arbitrary project folder; SDK_MODE=1 marks it, so
+# ensure_container skips the /work mount (there is no framework checkout to mount for a
+# real SDK user) and names the container per project instead of a single fixed name.
 IMAGE_BASE=""
 IMAGE="impression/toolchain:modern"
 CONTAINER="impression-dev"
 IMAGE_DOCKERFILE="docker/Dockerfile.modern"
 IMAGE_CONTEXT="docker"
+SDK_MODE=0
 case "${IMPRESSION_TOOLCHAIN:-modern}" in
     modern) ;;
     snapshot)
@@ -32,8 +55,14 @@ case "${IMPRESSION_TOOLCHAIN:-modern}" in
         IMAGE_DOCKERFILE="docker/Dockerfile"
         IMAGE_CONTEXT="extern/tyra/assets"
         ;;
+    sdk)
+        IMAGE="impression/sdk:local"
+        IMAGE_DOCKERFILE="docker/Dockerfile.sdk"
+        IMAGE_CONTEXT="."
+        SDK_MODE=1
+        ;;
     *)
-        echo "error: IMPRESSION_TOOLCHAIN must be 'modern' or 'snapshot' (got '${IMPRESSION_TOOLCHAIN}')" >&2
+        echo "error: IMPRESSION_TOOLCHAIN must be 'modern', 'snapshot' or 'sdk' (got '${IMPRESSION_TOOLCHAIN}')" >&2
         exit "$EXIT_USAGE"
         ;;
 esac
@@ -111,7 +140,8 @@ need_docker() {
 ensure_images() {
     if [ -n "$IMAGE_BASE" ] && ! docker image inspect "$IMAGE_BASE" >/dev/null 2>&1; then
         echo "Building the PS2DEV toolchain image (one time, this takes a long while)..." >&2
-        docker build -f "$IMPRESSION_ROOT/docker/Dockerfile.ps2dev" -t "$IMAGE_BASE" "$IMPRESSION_ROOT/docker" >&2 ||
+        docker build -f "$(to_native_path "$IMPRESSION_ROOT/docker/Dockerfile.ps2dev")" -t "$IMAGE_BASE" \
+            "$(to_native_path "$IMPRESSION_ROOT/docker")" >&2 ||
             die "$EXIT_ENV" "building $IMAGE_BASE failed"
     fi
     if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
@@ -120,7 +150,8 @@ ensure_images() {
             die "$EXIT_ENV" "$IMAGE_CONTEXT/vcl is missing (submodule not checked out)"
         fi
         echo "Building the toolchain image $IMAGE..." >&2
-        docker build -f "$IMPRESSION_ROOT/$IMAGE_DOCKERFILE" -t "$IMAGE" "$IMPRESSION_ROOT/$IMAGE_CONTEXT" >&2 ||
+        docker build -f "$(to_native_path "$IMPRESSION_ROOT/$IMAGE_DOCKERFILE")" -t "$IMAGE" \
+            "$(to_native_path "$IMPRESSION_ROOT/$IMAGE_CONTEXT")" >&2 ||
             die "$EXIT_ENV" "building $IMAGE failed"
     fi
 }
@@ -133,13 +164,31 @@ update_submodules() {
     git -C "$IMPRESSION_ROOT" submodule update --init --recursive >&2 || die "$EXIT_ENV" "git submodule update failed"
 }
 
+# project_hash: a short, stable identifier for PROJECT_ABS, used to name a
+# per-project SDK container. Not cryptographic; collisions are not a real concern
+# for a handful of local projects.
+project_hash() {
+    if command -v sha1sum >/dev/null 2>&1; then
+        printf '%s' "$PROJECT_ABS" | sha1sum | cut -c1-12
+    else
+        printf '%s' "$PROJECT_ABS" | shasum -a 1 | cut -c1-12
+    fi
+}
+
 # ensure_container: makes sure the long-lived container is running with the right
-# mounts. A container whose mounts or image no longer match (another project was
-# chosen, the image was rebuilt) is recreated. Needs PROJECT_ABS.
+# mounts. In SDK_MODE the container is named per project (there is no single fixed
+# dev container to share, and no /work mount: the framework and Tyra are baked into
+# the image, not a host checkout). Otherwise a container whose mounts or image no
+# longer match (another project was chosen, the image was rebuilt) is recreated.
+# Needs PROJECT_ABS.
 ensure_container() {
     need_docker
     ensure_images
     update_submodules
+
+    if [ "$SDK_MODE" -eq 1 ]; then
+        CONTAINER="impression-sdk-$(project_hash)"
+    fi
 
     local image_id signature current running
     image_id="$(docker image inspect -f '{{.Id}}' "$IMAGE")"
@@ -153,12 +202,17 @@ ensure_container() {
     fi
 
     if [ -z "$current" ]; then
-        local user_args=()
+        local user_args=() mount_args=()
         # On Linux, files created in the mounts should belong to the caller.
         if [ "$(uname -s)" = "Linux" ]; then user_args=(--user "$(id -u):$(id -g)"); fi
+        if [ "$SDK_MODE" -eq 1 ]; then
+            # IMPRESSION_HOME is baked into the SDK image (ENV); no /work checkout exists.
+            mount_args=(-v "$(to_native_path "$PROJECT_ABS"):/project")
+        else
+            mount_args=(-e IMPRESSION_HOME=/work -v "$(to_native_path "$IMPRESSION_ROOT"):/work" -v "$(to_native_path "$PROJECT_ABS"):/project")
+        fi
         docker run -d --name "$CONTAINER" --label "impression.signature=$signature" \
-            ${user_args[@]+"${user_args[@]}"} -e IMPRESSION_HOME=/work \
-            -v "$IMPRESSION_ROOT:/work" -v "$PROJECT_ABS:/project" -w /project \
+            ${user_args[@]+"${user_args[@]}"} "${mount_args[@]}" -w /project \
             "$IMAGE" >/dev/null || die "$EXIT_ENV" "could not create the container $CONTAINER"
         return 0
     fi
@@ -169,10 +223,13 @@ ensure_container() {
     fi
 }
 
-# container_imp <imp args...>: runs docker/imp inside the container. The exit code
-# is imp's own (0 ok, 1 build failed, 2 usage, 3 environment).
+# container_imp <imp args...>: runs docker/imp inside the container, at
+# $IMPRESSION_HOME/docker/imp (that variable is /work for the dev/snapshot
+# flavours, baked to /impression for the SDK image), so the same call works for
+# every flavour. The exit code is imp's own (0 ok, 1 build failed, 2 usage,
+# 3 environment).
 container_imp() {
-    docker exec -w /project "$CONTAINER" bash /work/docker/imp "$@"
+    docker exec -w /project "$CONTAINER" bash -c 'bash "$IMPRESSION_HOME/docker/imp" "$@"' bash "$@"
 }
 
 # find_elf: sets ELF to the single *.elf in <project>/bin on the host.

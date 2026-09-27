@@ -25,5 +25,16 @@ resolve_project "${1:-}"
 load_project_config
 ensure_container
 
-# The container prints a project-relative path; tools get an absolute host path.
-container_imp build | sed -u "s|^IMPRESSION_ELF=|IMPRESSION_ELF=$PROJECT_ABS/|"
+# The container prints a project-relative path; tools get an absolute, native host
+# path (not Bash's own POSIX-style one: a consumer other than this script, such as
+# PCSX2 or a GUI, needs a path it can actually open).
+project_native="$(to_native_path "$PROJECT_ABS")"
+container_imp build | while IFS= read -r line; do
+    case "$line" in
+        IMPRESSION_ELF=*)
+            rel="${line#IMPRESSION_ELF=}"
+            echo "IMPRESSION_ELF=${project_native}\\${rel//\//\\}"
+            ;;
+        *) echo "$line" ;;
+    esac
+done

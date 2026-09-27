@@ -1,0 +1,26 @@
+# Applies to any build that uses the repository root as its context (currently
+# docker/Dockerfile.sdk; the other Dockerfiles use a small subfolder as context and
+# never see this file). Keep this close to .gitignore.
+
+.git
+obj/
+bin/
+*.o
+*.d
+*.a
+*.elf
+*.elf.sym
+
+# Only the SDK Dockerfile's own explicit COPY lines matter for what ends up in the
+# image; excluding the rest keeps the build context small and the upload fast.
+.vscode/
+docs/
+examples/
+project/
+scripts/
+docker/
+!docker/fetch-at.sh
+!docker/imp
+.github/
+*.md
+impression.local.conf*

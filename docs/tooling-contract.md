@@ -17,13 +17,27 @@ Windows commands are run as `scripts\<name>.cmd ...` (a shim that starts
 macOS commands as `scripts/<name>.sh ...`. All of them build and run the project in
 a long-lived toolchain container that they start (or recreate) when needed.
 
-**Choosing the project.** An optional folder argument, else `PROJECT_DIR` in
-`impression.local.conf`, else `project/` at the repository root (seeded as a copy of
+**Choosing the project.** An optional folder argument, else the `PROJECT_DIR`
+environment variable, else `project/` at the repository root (seeded as a copy of
 `examples/hello`). A folder argument is relative to the current directory and
-`PROJECT_DIR` to the repository root; absolute paths work. The folder must contain
-a `Makefile` (exit 2 otherwise): it is used exactly as given, nothing is searched
-for. Inside the container the project is always `/project`. Changing the project
-recreates the container (a few seconds).
+`PROJECT_DIR` to the repository root; absolute paths work, and any folder on the
+host works, inside or outside this repository. The folder must contain a `Makefile`
+(exit 2 otherwise): it is used exactly as given, nothing is searched for. Inside the
+container the project is always `/project`. Changing the project recreates the
+container (a few seconds) in the `modern`/`snapshot` flavours; the `sdk` flavour
+gives each project its own container instead (see below).
+
+**Toolchain flavour** (`IMPRESSION_TOOLCHAIN` environment variable):
+
+| Value | Image | Contains | Container |
+|---|---|---|---|
+| `modern` (default) | `impression/toolchain:modern` | the official `ps2dev/ps2dev` image plus `vclpp`; builds the ported Tyra fork | `impression-dev` |
+| `snapshot` | `impression/toolchain:dev` | a from-source July 2022 PS2DEV build; builds unported upstream Tyra | `impression-dev-snapshot` |
+| `sdk` | `impression/sdk:local` | the framework and Tyra prebuilt (baked in at image build time, `IMPRESSION_HOME=/impression`); no framework checkout is mounted | `impression-sdk-<hash>`, one per project (a short hash of the resolved project path) |
+
+Any other value is a usage error (exit 2). `sdk` is for local testing of the SDK
+experience against an arbitrary project folder from within this repo; it is not yet
+what a real SDK end user (no checkout of this repo) would use — see the TODO.
 
 | Purpose | Command |
 |---|---|

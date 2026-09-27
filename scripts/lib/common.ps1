@@ -21,12 +21,17 @@ function Stop-Script {
 # Toolchain flavour. The default is the current official ps2dev image (GCC 15, openvcl;
 # docker/Dockerfile.modern), which the ported Tyra fork needs. IMPRESSION_TOOLCHAIN=snapshot
 # selects the source-built July 2022 snapshot (docker/Dockerfile.ps2dev), which only builds
-# the unported Tyra (upstream master). Each flavour has its own container.
+# the unported Tyra (upstream master). IMPRESSION_TOOLCHAIN=sdk selects the SDK image
+# (docker/Dockerfile.sdk: framework and Tyra baked in, prebuilt), for local testing of
+# the SDK experience against an arbitrary project folder; SdkMode marks it, so
+# Confirm-Container skips the /work mount (there is no framework checkout to mount for a
+# real SDK user) and names the container per project instead of a single fixed name.
 $script:ImageBase = ''
 $script:Image = 'impression/toolchain:modern'
 $script:Container = 'impression-dev'
 $script:ImageDockerfile = 'docker\Dockerfile.modern'
 $script:ImageContext = 'docker'
+$script:SdkMode = $false
 
 # Select-Toolchain: applies IMPRESSION_TOOLCHAIN. Every entry script calls it right
 # after dot-sourcing this file: an `exit` executed while a file is being dot-sourced
@@ -40,8 +45,13 @@ function Select-Toolchain {
         $script:Container = 'impression-dev-snapshot'
         $script:ImageDockerfile = 'docker\Dockerfile'
         $script:ImageContext = 'extern\tyra\assets'
+    } elseif ($flavour -eq 'sdk') {
+        $script:Image = 'impression/sdk:local'
+        $script:ImageDockerfile = 'docker\Dockerfile.sdk'
+        $script:ImageContext = '.'
+        $script:SdkMode = $true
     } elseif ($flavour -ne 'modern') {
-        Stop-Script $script:ExitUsage "IMPRESSION_TOOLCHAIN must be 'modern' or 'snapshot' (got '$flavour')"
+        Stop-Script $script:ExitUsage "IMPRESSION_TOOLCHAIN must be 'modern', 'snapshot' or 'sdk' (got '$flavour')"
     }
 }
 
@@ -150,15 +160,34 @@ function Confirm-Images {
     }
 }
 
+# Get-ProjectHash <project-abs>: a short, stable identifier for that path, used to
+# name a per-project SDK container. Not cryptographic; collisions are not a real
+# concern for a handful of local projects.
+function Get-ProjectHash {
+    param([string]$ProjectAbs)
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    try {
+        $bytes = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($ProjectAbs))
+    } finally {
+        $md5.Dispose()
+    }
+    return ([System.BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant().Substring(0, 12))
+}
+
 # Confirm-Container <project-abs>: makes sure the long-lived container is running
-# with the right mounts. A container whose mounts or image no longer match (another
-# project was chosen, the image was rebuilt) is recreated.
+# with the right mounts. In SdkMode the container is named per project (there is no
+# single fixed dev container to share, and no /work mount: the framework and Tyra
+# are baked into the image, not a host checkout). Otherwise a container whose
+# mounts or image no longer match (another project was chosen, the image was
+# rebuilt) is recreated.
 function Confirm-Container {
     param([string]$ProjectAbs)
     $ErrorActionPreference = 'Continue'  # native stderr must not abort; exit codes are checked
     Assert-Docker
     Confirm-Images
     Update-Submodules
+
+    if ($script:SdkMode) { $script:Container = "impression-sdk-$(Get-ProjectHash $ProjectAbs)" }
 
     $imageId = (docker image inspect -f '{{.Id}}' $script:Image)
     $signature = "$($script:ImpressionRoot)|$ProjectAbs|$imageId"
@@ -178,10 +207,17 @@ function Confirm-Container {
     }
 
     if ([string]::IsNullOrEmpty($current)) {
-        docker run -d --name $script:Container --label "impression.signature=$signature" `
-            -e IMPRESSION_HOME=/work `
-            -v "$($script:ImpressionRoot):/work" -v "${ProjectAbs}:/project" -w /project `
-            $script:Image *> $null
+        if ($script:SdkMode) {
+            # IMPRESSION_HOME is baked into the SDK image (ENV); no /work checkout exists.
+            docker run -d --name $script:Container --label "impression.signature=$signature" `
+                -v "${ProjectAbs}:/project" -w /project `
+                $script:Image *> $null
+        } else {
+            docker run -d --name $script:Container --label "impression.signature=$signature" `
+                -e IMPRESSION_HOME=/work `
+                -v "$($script:ImpressionRoot):/work" -v "${ProjectAbs}:/project" -w /project `
+                $script:Image *> $null
+        }
         if ($LASTEXITCODE -ne 0) { Stop-Script $script:ExitEnv "could not create the container $($script:Container)" }
         return
     }
@@ -193,11 +229,14 @@ function Confirm-Container {
     }
 }
 
-# Invoke-ContainerImp <imp args...>: runs docker/imp inside the container. The exit
-# code is imp's own (0 ok, 1 build failed, 2 usage, 3 environment), in $LASTEXITCODE.
+# Invoke-ContainerImp <imp args...>: runs docker/imp inside the container, at
+# $IMPRESSION_HOME/docker/imp (that variable is /work for the dev/snapshot
+# flavours, baked to /impression for the SDK image), so the same call works for
+# every flavour. The exit code is imp's own (0 ok, 1 build failed, 2 usage,
+# 3 environment), in $LASTEXITCODE.
 function Invoke-ContainerImp {
     $ErrorActionPreference = 'Continue'  # native stderr must not abort; exit codes are checked
-    docker exec -w /project $script:Container bash /work/docker/imp @args
+    docker exec -w /project $script:Container bash -c 'bash "$IMPRESSION_HOME/docker/imp" "$@"' bash @args
 }
 
 # Find-ImpressionElf <project-abs>: returns the single *.elf in <project>/bin.

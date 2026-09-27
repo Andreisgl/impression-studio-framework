@@ -44,6 +44,10 @@ if [ "$build" -eq 1 ]; then
     "$IMPRESSION_ROOT/scripts/build-project.sh" "$PROJECT_ABS" || exit $?
 fi
 find_elf
+# PCSX2 is a native Windows program; ELF (from find_elf, Bash's own POSIX-style
+# path) must be converted or PCSX2 rejects it outright (seen with a project outside
+# a drive-letter path, e.g. under Git Bash's /tmp).
+ELF="$(to_native_path "$ELF")"
 
 # Locate the emulator: PCSX2_PATH is either the executable or its directory.
 emu=""

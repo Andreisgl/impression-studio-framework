@@ -1,0 +1,53 @@
+# Copyright 2026 Andrei Segal
+# SPDX-License-Identifier: Apache-2.0
+
+# SDK image: Impression Studio and its pinned Tyra fork, prebuilt, for people who
+# only have their own game repo (no checkout of this framework repo). Build from
+# the repository root, so the build context includes extern/tyra:
+#   docker build -f docker/Dockerfile.sdk -t impression/sdk:local .
+#
+# A user's project is bind-mounted at /project at container run time (the same
+# mechanism the framework's own dev flavor uses); nothing about the project is baked
+# into this image. IMPRESSION_HOME is fixed at /impression, since the framework and
+# Tyra never move once baked in.
+#
+# Shares its toolchain recipe (official PS2DEV image pinned by digest, plus vclpp
+# from a pinned commit) with docker/Dockerfile.modern; the two are not yet unified
+# into one source of truth (see TODO.md).
+
+ARG PS2DEV_IMAGE=ps2dev/ps2dev@sha256:1511fde1e42e2c8c192e08a308d9c90d3d69613f6c8022ec71aac7202d477336
+
+FROM ${PS2DEV_IMAGE} AS vclpp-build
+RUN apk add --no-cache g++ make git
+COPY docker/fetch-at.sh /usr/local/bin/fetch-at
+RUN chmod +x /usr/local/bin/fetch-at \
+    && fetch-at https://github.com/glampert/vclpp 6d787b640efaf793f5993ded336951e4136dc3d3 /vclpp \
+    && cd /vclpp && make
+
+# ------------------------------------------------------------------------------
+# Compiles the framework and Tyra once, at image-build time, so every container
+# made from this image starts with libtyra.a and libimpression.a already built.
+FROM ${PS2DEV_IMAGE} AS framework-build
+RUN apk add --no-cache bash make git coreutils findutils sed grep libstdc++ libgcc
+COPY --from=vclpp-build /vclpp/vclpp /usr/local/bin/vclpp
+
+# Each directory gets its own COPY line: bundling a directory into a multi-source
+# COPY (e.g. "COPY Makefile mk NOTICE LICENSE dest/") copies only its CONTENTS,
+# flattening mk/project.mk to dest/project.mk instead of dest/mk/project.mk.
+COPY Makefile NOTICE LICENSE /impression/
+COPY mk /impression/mk
+COPY inc /impression/inc
+COPY src /impression/src
+COPY extern/tyra /impression/extern/tyra
+RUN make -C /impression
+
+# ------------------------------------------------------------------------------
+FROM ${PS2DEV_IMAGE}
+RUN apk add --no-cache bash make git coreutils findutils sed grep libstdc++ libgcc
+COPY --from=vclpp-build /vclpp/vclpp /usr/local/bin/vclpp
+COPY --from=framework-build /impression /impression
+COPY docker/imp /impression/docker/imp
+
+ENV IMPRESSION_HOME=/impression
+WORKDIR /project
+CMD ["sleep", "infinity"]
