@@ -125,9 +125,10 @@ invocation. A GUI that keeps its own settings can therefore skip the file and se
   `--elf=<file>`. The scripts pick by executable name and the presence of
   `qt.conf`, as TyraX does. Confirm any extra flags (such as `-batch`) against
   your PCSX2 version and put them in `PCSX2_ARGS`.
-- Long-running commands: the very first `build-project` builds the toolchain image
-  (tens of minutes, output goes to the terminal) and compiles Tyra and the framework;
-  later runs recompile only what changed. A GUI should run it asynchronously and
+- Long-running commands: the very first `build-project` pulls and builds the toolchain
+  image (a few minutes, output goes to the terminal; the optional `snapshot` toolchain
+  takes tens of minutes) and compiles Tyra and the framework; later runs recompile
+  only what changed. A GUI should run it asynchronously and
   stream stdout to a log pane.
 - `IMPRESSION_ELF` is always an absolute host path; the container's own
   project-relative path is translated by the launcher.

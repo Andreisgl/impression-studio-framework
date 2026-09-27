@@ -14,6 +14,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\common.ps1')
+Select-Toolchain
 
 if ($Help) {
     Get-Content $PSCommandPath -TotalCount 9 | Select-Object -Skip 3 | ForEach-Object { $_ -replace '^# ?', '' }

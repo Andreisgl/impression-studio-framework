@@ -14,21 +14,29 @@ EXIT_ENV=3    # environment problem: docker, git or PCSX2 missing or misconfigur
 # Git Bash on Windows would otherwise rewrite container paths passed to docker.
 export MSYS_NO_PATHCONV=1
 
-# Toolchain flavour. The default is the source-built July 2022 snapshot; setting
-# IMPRESSION_TOOLCHAIN=modern selects the current official ps2dev image, used while
-# porting the Tyra fork (docker/Dockerfile.modern). Each has its own container.
-IMAGE_BASE="impression/ps2dev:2022-07"
-IMAGE="impression/toolchain:dev"
+# Toolchain flavour. The default is the current official ps2dev image (GCC 15, openvcl;
+# docker/Dockerfile.modern), which the ported Tyra fork needs. IMPRESSION_TOOLCHAIN=snapshot
+# selects the source-built July 2022 snapshot (docker/Dockerfile.ps2dev), which only builds
+# the unported Tyra (upstream master). Each flavour has its own container.
+IMAGE_BASE=""
+IMAGE="impression/toolchain:modern"
 CONTAINER="impression-dev"
-IMAGE_DOCKERFILE="docker/Dockerfile"
-IMAGE_CONTEXT="extern/tyra/assets"
-if [ "${IMPRESSION_TOOLCHAIN:-}" = "modern" ]; then
-    IMAGE_BASE=""
-    IMAGE="impression/toolchain:modern"
-    CONTAINER="impression-dev-modern"
-    IMAGE_DOCKERFILE="docker/Dockerfile.modern"
-    IMAGE_CONTEXT="docker"
-fi
+IMAGE_DOCKERFILE="docker/Dockerfile.modern"
+IMAGE_CONTEXT="docker"
+case "${IMPRESSION_TOOLCHAIN:-modern}" in
+    modern) ;;
+    snapshot)
+        IMAGE_BASE="impression/ps2dev:2022-07"
+        IMAGE="impression/toolchain:dev"
+        CONTAINER="impression-dev-snapshot"
+        IMAGE_DOCKERFILE="docker/Dockerfile"
+        IMAGE_CONTEXT="extern/tyra/assets"
+        ;;
+    *)
+        echo "error: IMPRESSION_TOOLCHAIN must be 'modern' or 'snapshot' (got '${IMPRESSION_TOOLCHAIN}')" >&2
+        exit "$EXIT_USAGE"
+        ;;
+esac
 
 # die <exit-code> <message...>: message to stderr, then exit.
 die() {

@@ -35,11 +35,18 @@ debugger). A second configuration asks for the project folder. The workspace
 terminal on Windows starts PowerShell with the execution policy bypassed, so
 `.\scripts\imp.ps1` also works when typed by hand.
 
-**First run.** The scripts build two Docker images automatically. The first is the
-PS2DEV toolchain, compiled from source at a fixed 2022 snapshot (see
-`docker/Dockerfile.ps2dev` for why); it takes a long while once and is then cached
-by Docker. Tyra and the framework are also compiled on first use, and only
-recompiled when they change.
+**First run.** The scripts build the toolchain image automatically: the official
+PS2DEV image (pulled once, about 1 GB, pinned by digest) plus `vclpp`, which takes a
+minute or two and is then cached by Docker. Tyra and the framework are also compiled
+on first use, and only recompiled when they change.
+
+**Toolchain and the Tyra checkout.** The default toolchain (GCC 15, current ps2sdk,
+`openvcl`) builds the ported Tyra fork, the branch `port/ps2dev-2.0` of the fork that
+`extern/tyra` should have checked out. It cannot build upstream `h4570/tyra`, which
+needs `bin2s` and Sony's `vcl`. For that (or to reproduce the old environment) set
+`IMPRESSION_TOOLCHAIN=snapshot`: it selects the July 2022 PS2DEV, compiled from source
+(`docker/Dockerfile.ps2dev`, tens of minutes once) and has its own container. Any other
+value is an error. Details and status of the port: `docs/tyra-port-notes.md`.
 
 **Which project.** Any folder with a `Makefile` works; it is mounted into the
 container at `/project`. Choose it with `PROJECT_DIR` in `impression.local.conf`

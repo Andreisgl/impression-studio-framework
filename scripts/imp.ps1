@@ -15,6 +15,7 @@
 # Exit codes of native commands are checked explicitly.
 $ErrorActionPreference = 'Continue'
 . (Join-Path $PSScriptRoot 'lib\common.ps1')
+Select-Toolchain
 
 $rest = @($args)
 $projectArg = ''

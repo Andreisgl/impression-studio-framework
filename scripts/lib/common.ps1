@@ -11,27 +11,38 @@ $script:ExitFail = 1   # the build or launch itself failed
 $script:ExitUsage = 2  # bad arguments, unknown project, missing or ambiguous ELF
 $script:ExitEnv = 3    # environment problem: docker, git or PCSX2 missing or misconfigured
 
-# Toolchain flavour. The default is the source-built July 2022 snapshot; setting
-# IMPRESSION_TOOLCHAIN=modern selects the current official ps2dev image, used while
-# porting the Tyra fork (docker/Dockerfile.modern). Each has its own container.
-$script:ImageBase = 'impression/ps2dev:2022-07'
-$script:Image = 'impression/toolchain:dev'
-$script:Container = 'impression-dev'
-$script:ImageDockerfile = 'docker\Dockerfile'
-$script:ImageContext = 'extern\tyra\assets'
-if ($env:IMPRESSION_TOOLCHAIN -eq 'modern') {
-    $script:ImageBase = ''
-    $script:Image = 'impression/toolchain:modern'
-    $script:Container = 'impression-dev-modern'
-    $script:ImageDockerfile = 'docker\Dockerfile.modern'
-    $script:ImageContext = 'docker'
-}
-
 # Stop-Script <exit-code> <message>: message to stderr, then exit.
 function Stop-Script {
     param([int]$Code, [string]$Message)
     [Console]::Error.WriteLine("error: $Message")
     exit $Code
+}
+
+# Toolchain flavour. The default is the current official ps2dev image (GCC 15, openvcl;
+# docker/Dockerfile.modern), which the ported Tyra fork needs. IMPRESSION_TOOLCHAIN=snapshot
+# selects the source-built July 2022 snapshot (docker/Dockerfile.ps2dev), which only builds
+# the unported Tyra (upstream master). Each flavour has its own container.
+$script:ImageBase = ''
+$script:Image = 'impression/toolchain:modern'
+$script:Container = 'impression-dev'
+$script:ImageDockerfile = 'docker\Dockerfile.modern'
+$script:ImageContext = 'docker'
+
+# Select-Toolchain: applies IMPRESSION_TOOLCHAIN. Every entry script calls it right
+# after dot-sourcing this file: an `exit` executed while a file is being dot-sourced
+# does not stop the calling script, so the check has to run from the caller's scope.
+function Select-Toolchain {
+    $flavour = $env:IMPRESSION_TOOLCHAIN
+    if ([string]::IsNullOrEmpty($flavour)) { $flavour = 'modern' }
+    if ($flavour -eq 'snapshot') {
+        $script:ImageBase = 'impression/ps2dev:2022-07'
+        $script:Image = 'impression/toolchain:dev'
+        $script:Container = 'impression-dev-snapshot'
+        $script:ImageDockerfile = 'docker\Dockerfile'
+        $script:ImageContext = 'extern\tyra\assets'
+    } elseif ($flavour -ne 'modern') {
+        Stop-Script $script:ExitUsage "IMPRESSION_TOOLCHAIN must be 'modern' or 'snapshot' (got '$flavour')"
+    }
 }
 
 # Get-ImpressionConfig: reads KEY=VALUE lines from impression.local.conf without

@@ -23,9 +23,13 @@ a mid-2022 ps2dev environment. Current ps2dev differs in ways that break it:
 | The official `ps2dev/ps2dev` image is Alpine (musl) with GCC 15.2. | Verified in the image. |
 | Sony's `vcl` is a 32-bit glibc executable, so it cannot run on Alpine without extra work. | Verified with `file` on `assets/vcl`: ELF 32-bit i386, dynamically linked against `/lib/ld-linux.so.2` (glibc). |
 
-Until the port is validated, the repository still defaults to a source-built July
-2022 snapshot (`docker/Dockerfile.ps2dev`, GCC 11.3.0), which is known to work.
-`IMPRESSION_TOOLCHAIN=modern` selects the ported path.
+The repository's launchers now default to the ported toolchain (the official
+`ps2dev/ps2dev` image, GCC 15.2, `docker/Dockerfile.modern`). The source-built July
+2022 snapshot (`docker/Dockerfile.ps2dev`, GCC 11.3.0, known to work with unported
+Tyra) remains available as `IMPRESSION_TOOLCHAIN=snapshot`, with its own container.
+Consequence: the default toolchain builds only the port, so the framework's recorded
+`extern/tyra` pointer (still upstream `c59f406`) is not buildable by default until it
+is moved to a pushed port commit (a deliberately deferred step).
 
 ## 2. Dependencies (modern toolchain)
 
@@ -163,8 +167,9 @@ has rendered yet.
 
 ### 4.2 This repository (commit `afe0ba7`)
 
-- `docker/Dockerfile.modern`, and the `IMPRESSION_TOOLCHAIN=modern` switch (its own
-  image and container). The default toolchain is unchanged.
+- `docker/Dockerfile.modern`, and the `IMPRESSION_TOOLCHAIN` switch (its own image and
+  container per flavour). It was opt-in (`modern`) while the port was unverified; the
+  default is now `modern`, and `snapshot` selects the old source-built toolchain.
 - The launchers no longer run `git submodule update` on an existing Tyra checkout
   (it would reset a fork branch under development).
 - `src/log_serial.cpp` overrides newlib's `_write` (fd 1 and 2 go to the log sinks,
