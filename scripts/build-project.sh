@@ -4,8 +4,8 @@
 
 # Builds a project completely (Tyra, the framework, then the project) inside the
 # toolchain container. Usage: scripts/build-project.sh [project-dir]
-# Without an argument the project is PROJECT_DIR from impression.local.conf, else
-# examples/hello. Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
+# Without an argument the project is the PROJECT_DIR environment variable, else
+# project/. Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
 # On success the last stdout line is IMPRESSION_ELF=<absolute path to the ELF>.
 # See docs/tooling-contract.md.
 set -euo pipefail
@@ -21,8 +21,8 @@ case "${1:-}" in
 esac
 [ "$#" -le 1 ] || die "$EXIT_USAGE" "usage: build-project.sh [project-dir]"
 
-load_config
 resolve_project "${1:-}"
+load_project_config
 ensure_container
 
 # The container prints a project-relative path; tools get an absolute host path.

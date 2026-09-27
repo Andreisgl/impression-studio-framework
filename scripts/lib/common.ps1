@@ -45,16 +45,47 @@ function Select-Toolchain {
     }
 }
 
-# Get-ImpressionConfig: reads KEY=VALUE lines from impression.local.conf without
-# executing it. Only known keys are read, and environment variables win over the file.
-function Get-ImpressionConfig {
-    $keys = 'PCSX2_PATH', 'PCSX2_ARGS', 'PROJECT_DIR'
+# Resolve-ImpressionProject <path>: returns the absolute project folder. A path
+# given as an argument is relative to the current directory; the PROJECT_DIR
+# environment variable (never read from a file: see Get-ProjectConfig below) is
+# relative to the repo root; with neither, the framework's own project/ folder is
+# used. Any folder on the host works: the container mounts it at /project.
+function Resolve-ImpressionProject {
+    param([string]$Path)
+    if (-not [string]::IsNullOrEmpty($Path)) {
+        $base = (Get-Location).Path
+    } else {
+        $Path = $env:PROJECT_DIR
+        if ([string]::IsNullOrEmpty($Path)) { $Path = 'project' }
+        $base = $script:ImpressionRoot
+    }
+    if (-not [IO.Path]::IsPathRooted($Path)) { $Path = Join-Path $base $Path }
+    $resolved = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
+    if (-not $resolved -or -not (Test-Path -LiteralPath $resolved.Path -PathType Container)) {
+        Stop-Script $script:ExitUsage "project directory not found: $Path"
+    }
+    $abs = $resolved.Path.TrimEnd('\')
+    if (-not (Test-Path -LiteralPath (Join-Path $abs 'Makefile'))) {
+        Stop-Script $script:ExitUsage "no Makefile in project folder: $abs"
+    }
+    return $abs
+}
+
+# Get-ProjectConfig <project-abs>: reads KEY=VALUE lines from
+# <project>/impression.local.conf (created from impression.local.conf.example if
+# missing) without executing it. Only PCSX2_PATH and PCSX2_ARGS live here: PCSX2
+# runs on the host, so its settings travel with the project, the same way for the
+# framework's own dev project and for an SDK user's own project. Environment
+# variables win over the file, so a tool can override per invocation.
+function Get-ProjectConfig {
+    param([string]$ProjectAbs)
+    $keys = 'PCSX2_PATH', 'PCSX2_ARGS'
     $config = @{}
-    $file = Join-Path $script:ImpressionRoot 'impression.local.conf'
+    $file = Join-Path $ProjectAbs 'impression.local.conf'
     $example = Join-Path $script:ImpressionRoot 'impression.local.conf.example'
     if (-not (Test-Path -LiteralPath $file) -and (Test-Path -LiteralPath $example)) {
         Copy-Item -LiteralPath $example -Destination $file
-        [Console]::Error.WriteLine('Created impression.local.conf (from impression.local.conf.example). Edit it to set PCSX2_PATH before running a project.')
+        [Console]::Error.WriteLine("Created $file (from impression.local.conf.example). Edit it to set PCSX2_PATH before running this project.")
     }
     if (Test-Path -LiteralPath $file) {
         foreach ($line in Get-Content -LiteralPath $file) {
@@ -74,32 +105,6 @@ function Get-ImpressionConfig {
         if (-not [string]::IsNullOrEmpty($fromEnv)) { $config[$key] = $fromEnv }
     }
     return $config
-}
-
-# Resolve-ImpressionProject <path> <config>: returns the absolute project folder. A
-# path given as an argument is relative to the current directory; PROJECT_DIR from
-# the config is relative to the repo root; with neither, the framework's own
-# project/ folder is used. Any folder on the host works: the container mounts it
-# at /project.
-function Resolve-ImpressionProject {
-    param([string]$Path, [hashtable]$Config)
-    if (-not [string]::IsNullOrEmpty($Path)) {
-        $base = (Get-Location).Path
-    } else {
-        $Path = $Config['PROJECT_DIR']
-        if ([string]::IsNullOrEmpty($Path)) { $Path = 'project' }
-        $base = $script:ImpressionRoot
-    }
-    if (-not [IO.Path]::IsPathRooted($Path)) { $Path = Join-Path $base $Path }
-    $resolved = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
-    if (-not $resolved -or -not (Test-Path -LiteralPath $resolved.Path -PathType Container)) {
-        Stop-Script $script:ExitUsage "project directory not found: $Path"
-    }
-    $abs = $resolved.Path.TrimEnd('\')
-    if (-not (Test-Path -LiteralPath (Join-Path $abs 'Makefile'))) {
-        Stop-Script $script:ExitUsage "no Makefile in project folder: $abs"
-    }
-    return $abs
 }
 
 function Assert-Docker {

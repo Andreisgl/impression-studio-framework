@@ -105,24 +105,31 @@ the `host:` log file does not exist; disable sinks through `LogConfig`.
 
 ## Configuration
 
-Machine-specific settings live in `impression.local.conf` at the repository root
-(ignored by git). It is created automatically, from `impression.local.conf.example`,
-the first time any launcher runs (a one-line note is printed to stderr); nothing
-needs to be copied by hand. It is plain `KEY=value` lines and is parsed, never
-executed, so a GUI can read and write it safely. This auto-create step is meant to
-generalize to a future SDK flavour, where there is no repository checkout to copy
-the example from; see the TODO for the still-open question of where the file (and
-the PCSX2 path, which must stay a host setting) lives in that case.
+Machine-specific settings for a project live in `<project>/impression.local.conf`
+(ignored by git) — next to that project's `Makefile`, not at the repository root.
+It is created automatically, from `impression.local.conf.example`, the first time a
+launcher touches that project (a one-line note is printed to stderr); nothing needs
+to be copied by hand. It is plain `KEY=value` lines and is parsed, never executed,
+so a GUI can read and write it safely. This location is deliberate: PCSX2 runs on
+the host, so its settings have to be host-side, and keeping them with the project
+(rather than with the toolchain) means the same file convention works whether the
+project is this repository's own `project/`, a folder elsewhere on disk, or —
+once built — a project in a future SDK flavour that has no toolchain checkout to
+copy the example from.
 
 | Key | Meaning |
 |---|---|
 | `PCSX2_PATH` | PCSX2 executable, or the folder containing it (required to run) |
 | `PCSX2_ARGS` | optional extra flags passed before the ELF, split on whitespace |
-| `PROJECT_DIR` | overrides the default project (`project/`) when no folder argument is given |
 
 An environment variable with the same name overrides the file for that one
 invocation. A GUI that keeps its own settings can therefore skip the file and set
 `PCSX2_PATH` in the child process environment.
+
+`PROJECT_DIR` selects which project the launchers use when no folder argument is
+given (default `project/`). It is a real environment variable, never a config-file
+entry: since the config file lives inside a project, it cannot also be what picks
+the project.
 
 ## Notes
 

@@ -8,7 +8,7 @@
 #   build-engine | clean-engine                  Tyra's engine library
 #   build-framework | clean-framework            the framework library
 # The container is started automatically when a command needs it. The project is
-# -p <folder>, else PROJECT_DIR in impression.local.conf, else examples/hello.
+# -p <folder>, else the PROJECT_DIR environment variable, else project/.
 # Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment. docs/tooling-contract.md
 # 'Continue': docker writes ordinary messages to stderr (for example "no such
 # object" when the container is not created yet), which must not abort the script.
@@ -35,8 +35,6 @@ if ($rest.Count -lt 1) { Stop-Script $script:ExitUsage 'missing command (try: im
 $command = $rest[0]
 $commandArgs = @($rest | Select-Object -Skip 1)
 
-$config = Get-ImpressionConfig
-
 switch ($command) {
     'status' {
         Assert-Docker
@@ -56,7 +54,8 @@ switch ($command) {
         Confirm-Images
     }
     { $_ -in 'start', 'restart', 'shell', 'build', 'clean', 'make', 'build-engine', 'clean-engine', 'build-framework', 'clean-framework' } {
-        $projectAbs = Resolve-ImpressionProject $projectArg $config
+        $projectAbs = Resolve-ImpressionProject $projectArg
+        Get-ProjectConfig $projectAbs | Out-Null  # side effect: creates impression.local.conf if missing
         Assert-Docker
         if ($command -eq 'restart') { docker rm -f $script:Container *> $null }
         Confirm-Container $projectAbs

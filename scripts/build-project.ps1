@@ -3,8 +3,8 @@
 
 # Builds a project completely (Tyra, the framework, then the project) inside the
 # toolchain container. Usage: scripts\build-project.ps1 [project-dir]
-# Without an argument the project is PROJECT_DIR from impression.local.conf, else
-# examples/hello. Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
+# Without an argument the project is the PROJECT_DIR environment variable, else
+# project/. Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment.
 # On success the last stdout line is IMPRESSION_ELF=<absolute path to the ELF>.
 # See docs/tooling-contract.md.
 param(
@@ -21,8 +21,8 @@ if ($Help) {
     exit 0
 }
 
-$config = Get-ImpressionConfig
-$projectAbs = Resolve-ImpressionProject $Project $config
+$projectAbs = Resolve-ImpressionProject $Project
+Get-ProjectConfig $projectAbs | Out-Null  # side effect: creates impression.local.conf if missing
 Confirm-Container $projectAbs
 
 # The container prints a project-relative path; tools get an absolute host path.

@@ -46,16 +46,40 @@ die() {
     exit "$code"
 }
 
-# load_config: reads KEY=VALUE lines from impression.local.conf without executing
-# it. Only known keys are read, and variables already set in the environment win,
-# so a tool can override the file per invocation.
-load_config() {
-    local file="$IMPRESSION_ROOT/impression.local.conf"
+# resolve_project [path]: sets PROJECT_ABS. A path given as an argument is relative
+# to the current directory; PROJECT_DIR, a real environment variable (never read
+# from a file: see load_project_config below), is relative to the repo root; with
+# neither, the framework's own project/ folder is used. Any folder on the host
+# works: the container mounts it at /project.
+resolve_project() {
+    local path="${1:-}" base
+    if [ -n "$path" ]; then
+        base="$PWD"
+    else
+        path="${PROJECT_DIR:-project}"
+        base="$IMPRESSION_ROOT"
+    fi
+    case "$path" in
+        /* | [A-Za-z]:*) ;;
+        *) path="$base/$path" ;;
+    esac
+    PROJECT_ABS="$(cd "$path" 2>/dev/null && pwd)" || die "$EXIT_USAGE" "project directory not found: $path"
+    [ -f "$PROJECT_ABS/Makefile" ] || die "$EXIT_USAGE" "no Makefile in project folder: $PROJECT_ABS"
+}
+
+# load_project_config: reads KEY=VALUE lines from <project>/impression.local.conf
+# (created from impression.local.conf.example if missing) without executing it.
+# Only PCSX2_PATH and PCSX2_ARGS live here: PCSX2 runs on the host, so its settings
+# travel with the project, the same way for the framework's own dev project and for
+# an SDK user's own project. Variables already set in the environment win, so a tool
+# can override the file per invocation. Needs PROJECT_ABS (call after resolve_project).
+load_project_config() {
+    local file="$PROJECT_ABS/impression.local.conf"
     local example="$IMPRESSION_ROOT/impression.local.conf.example"
     local line key value
     if [ ! -f "$file" ] && [ -f "$example" ]; then
         cp "$example" "$file"
-        echo "Created impression.local.conf (from impression.local.conf.example). Edit it to set PCSX2_PATH before running a project." >&2
+        echo "Created $file (from impression.local.conf.example). Edit it to set PCSX2_PATH before running this project." >&2
     fi
     [ -f "$file" ] || return 0
     while IFS= read -r line || [ -n "$line" ]; do
@@ -71,29 +95,9 @@ load_config() {
             \"*\") value="${value#\"}"; value="${value%\"}" ;;
             \'*\') value="${value#\'}"; value="${value%\'}" ;;
         esac
-        case "$key" in PCSX2_PATH | PCSX2_ARGS | PROJECT_DIR) ;; *) continue ;; esac
+        case "$key" in PCSX2_PATH | PCSX2_ARGS) ;; *) continue ;; esac
         if [ -z "${!key:-}" ]; then export "$key=$value"; fi
     done <"$file"
-}
-
-# resolve_project [path]: sets PROJECT_ABS. A path given as an argument is relative
-# to the current directory; PROJECT_DIR from the config is relative to the repo
-# root; with neither, the framework's own project/ folder is used. Any folder on
-# the host works: the container mounts it at /project.
-resolve_project() {
-    local path="${1:-}" base
-    if [ -n "$path" ]; then
-        base="$PWD"
-    else
-        path="${PROJECT_DIR:-project}"
-        base="$IMPRESSION_ROOT"
-    fi
-    case "$path" in
-        /* | [A-Za-z]:*) ;;
-        *) path="$base/$path" ;;
-    esac
-    PROJECT_ABS="$(cd "$path" 2>/dev/null && pwd)" || die "$EXIT_USAGE" "project directory not found: $path"
-    [ -f "$PROJECT_ABS/Makefile" ] || die "$EXIT_USAGE" "no Makefile in project folder: $PROJECT_ABS"
 }
 
 need_docker() {

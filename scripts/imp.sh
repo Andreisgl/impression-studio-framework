@@ -9,7 +9,7 @@
 #   build-engine | clean-engine                  Tyra's engine library
 #   build-framework | clean-framework            the framework library
 # The container is started automatically when a command needs it. The project is
-# -p <folder>, else PROJECT_DIR in impression.local.conf, else examples/hello.
+# -p <folder>, else the PROJECT_DIR environment variable, else project/.
 # Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment. docs/tooling-contract.md
 set -euo pipefail
 
@@ -35,8 +35,6 @@ done
 command=$1
 shift
 
-load_config
-
 case "$command" in
     status)
         need_docker
@@ -56,6 +54,7 @@ case "$command" in
         ;;
     start | restart | shell | build | clean | make | build-engine | clean-engine | build-framework | clean-framework)
         resolve_project "$project_arg"
+        load_project_config
         need_docker
         if [ "$command" = "restart" ]; then docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; fi
         ensure_container

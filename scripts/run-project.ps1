@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Runs a project's ELF in PCSX2 on the host. The emulator location comes from
-# PCSX2_PATH in impression.local.conf (or the environment). Does not build unless asked.
+# PCSX2_PATH in <project>/impression.local.conf (or the environment). Does not
+# build unless asked.
 # Usage: scripts\run-project.ps1 [project-dir] [-Build] [-Restart] [-Wait] [-DryRun]
 #   -Build    build the project first (same as build-project.ps1)
 #   -Restart  stop a running instance of the same emulator first
@@ -28,13 +29,12 @@ if ($Help) {
     exit 0
 }
 
-$config = Get-ImpressionConfig
+$projectAbs = Resolve-ImpressionProject $Project
+$config = Get-ProjectConfig $projectAbs
 $pcsx2Path = $config['PCSX2_PATH']
 if ([string]::IsNullOrEmpty($pcsx2Path)) {
-    Stop-Script $script:ExitEnv 'PCSX2_PATH is not set. Copy impression.local.conf.example to impression.local.conf and set it.'
+    Stop-Script $script:ExitEnv "PCSX2_PATH is not set in $projectAbs\impression.local.conf. Edit that file and set it."
 }
-
-$projectAbs = Resolve-ImpressionProject $Project $config
 
 if ($Build) {
     & (Join-Path $PSScriptRoot 'build-project.ps1') $projectAbs

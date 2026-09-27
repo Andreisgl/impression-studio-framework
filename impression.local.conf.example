@@ -1,0 +1,22 @@
+# This file lives next to a project's own Makefile, as <project>/impression.local.conf.
+# It is created automatically (from this template) the first time a launcher touches
+# that project, so you never need to copy it by hand. Edit it and fill in the values
+# below. It is gitignored: settings here are per machine, not part of the project.
+# One KEY=VALUE per line, '#' starts a comment. Values may be quoted.
+# An environment variable with the same name overrides the file for one run.
+
+# Path to PCSX2: either the executable or the folder that contains it. PCSX2 runs on
+# the host, so this is always a host setting, even for a project built through an SDK
+# toolchain image.
+# Windows:  PCSX2_PATH=C:\Program Files\PCSX2_2.6.3
+# Linux:    PCSX2_PATH=/opt/pcsx2/pcsx2-qt
+PCSX2_PATH=
+
+# Optional extra command-line flags passed to PCSX2 before the ELF,
+# split on whitespace (no quoting). Example: PCSX2_ARGS=-batch
+PCSX2_ARGS=
+
+# There is no PROJECT_DIR setting here: since this file lives inside a project, it
+# cannot also be what picks the project. To build or run a different project by
+# default (dev flavor only; an SDK project builds itself), set the PROJECT_DIR
+# environment variable instead of an entry in this file.
