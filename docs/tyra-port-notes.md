@@ -37,7 +37,7 @@ Until the port is validated, the repository still defaults to a source-built Jul
 | `dvp-as` | `ps2dev/binutils-gdb` ref `dvp-v2.45.1` | GPL | **Unmodified.** The 2022 snapshot used a 2.14-based `dvp-as`; the 2024 history of that branch shows assembler changes (default PIC), so behaviour may differ. |
 | `vclpp` | `github.com/glampert/vclpp` commit `6d787b6` (2016), built in `docker/Dockerfile.modern` | MIT | **Not part of ps2dev.** See section 5. |
 | Alpine packages | `bash make git coreutils findutils sed grep libstdc++ libgcc` | various | `libstdc++`/`libgcc` are needed because the image ships `openvcl` without its C++ runtime (verified: it fails to start without them). |
-| Tyra fork | `Andreisgl/tyra`, local branch `port/ps2dev-2.0` (commits `c368301`, `22dd639` and `333fd2c`, **not pushed**) | Apache 2.0 (stated in headers/README; the repo has no LICENSE file since 2022) | |
+| Tyra fork | `Andreisgl/tyra`, local branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c` and `0031aeb`, **not pushed**) | Apache 2.0 (stated in headers/README; the repo has no LICENSE file since 2022) | |
 | Framework | this repository | Apache 2.0 | |
 
 ## 3. The VU program pipeline
@@ -72,7 +72,7 @@ has rendered yet.
 
 ## 4. Changes
 
-### 4.1 Tyra fork, branch `port/ps2dev-2.0` (commits `c368301`, `22dd639` and `333fd2c`)
+### 4.1 Tyra fork, branch `port/ps2dev-2.0` (commits `c368301`, `22dd639`, `333fd2c` and `0031aeb`)
 
 1. **`Makefile.base`**: `BIN2S` becomes `BIN2C`; the `.irx-em` rule generates
    `X.o.c` with `bin2c <irx> <out.c> <label>` and compiles it with the EE `gcc`;
@@ -131,11 +131,16 @@ has rendered yet.
    the programs depend on them.
 7. **`assets/vcl` deleted.** Sony's `vcl` binary, unused by the port build. It remains
    in the fork's history (see section 7).
-8. **`Dockerfile` and `README.MD`** (commit `333fd2c`): the Dockerfile no longer downloads
-   `assets/vcl`, copies it into the image, or installs the 32-bit libraries and qemu
-   that only `vcl` needed; the README's "Built With" lists OpenVCL instead of Sony VCL.
-   **Not built:** this Dockerfile compiles ps2dev from source (about an hour) and was
-   only edited, not run. Its ps2dev clone is still unpinned; see section 6.
+8. **`Dockerfile` and `README.MD`** (commits `333fd2c` and `0031aeb`): the Dockerfile no
+   longer downloads `assets/vcl`, and it no longer compiles ps2dev from source. It now
+   derives from `ps2dev/ps2dev@sha256:1511fde1...` (the digest used for the whole port)
+   and adds `vclpp` (pinned commit `6d787b6`), the GNU tools `Makefile.base` uses and
+   the C++ runtime that `openvcl`/`vclpp` need. The README's "Built With" lists
+   OpenVCL instead of Sony VCL. **Verified:** the image builds, and from a clean copy
+   of the fork (no `assets/vcl`, no earlier build output) `make -C engine`,
+   `make -C tutorials/01-hello` and `make -C tutorials/05-animation` succeed using only
+   that image. **Not verified:** rendering. The PS2DEV pin cannot simply be the
+   `v2.0.0` tag, see section 6.
 
 ### 4.2 This repository (commit `afe0ba7`)
 
@@ -187,7 +192,8 @@ definition and invocation.
   to `v2.0.0` would produce a toolchain without `openvcl`, and the port's VU build
   would fail. ps2dev's `v2.0.0` script passes the tag to each component, and every
   component has a `v2.0.0` tag (gsKit no longer has its own script), so tag pinning
-  is mechanically possible, but not sufficient by itself.
+  is mechanically possible, but not sufficient by itself. The fork's Dockerfile therefore
+  uses the official image pinned by digest instead of a from-source build.
 
 ## 7. Sony-copyrighted material in the fork
 
@@ -216,7 +222,7 @@ upstream or other forks. This is not legal advice.
 4. Is overriding `_write` acceptable, or should stdout be redirected through libcglue's fdman?
 5. Should the `clipw` failure, including the ps2sdk sample, be reported to `ps2dev/openvcl`?
 6. Please review `vu_macros.i` against the VU manual: does each macro do what its comment says, and are the clobbered registers (ACC, Q, I, VI01) documented correctly?
-7. How should the fork's from-source `Dockerfile` pin ps2dev so that `openvcl` is present (a `main` commit, a later tag, or building `openvcl` explicitly at `v0.4.0`), or should it simply derive from the official `ps2dev/ps2dev` image pinned by digest, as `docker/Dockerfile.modern` does?
+7. *(Decided, review welcome.)* The fork's `Dockerfile` derives from the official `ps2dev/ps2dev` image pinned by digest, which contains `openvcl`. Is a digest the right pin? It only moves when someone updates it deliberately.
 
 ## 9. Repositories and artifacts touched
 

@@ -16,8 +16,8 @@
   - [ ] Decide `vclpp` vs converting the 101 `#macro` definitions to MASP syntax to drop `vclpp` (open and small, but not part of ps2dev).
   - [ ] Switch the launchers' default to the modern toolchain; delete `Dockerfile.ps2dev`, `pin-sources.sh`, `fetch-at.sh`, the old `Dockerfile` (vcl layer) and the `IMPRESSION_TOOLCHAIN` switch.
   - [x] Sony material removed from the branch: `assets/vcl` deleted, and `vcl_sml.i` replaced by `vu_macros.i` (9 macros written from the VU manual; OpenVCL output is byte-identical to before for all 15 programs). They remain in history and upstream.
-  - [x] Fork `Dockerfile` no longer downloads `assets/vcl`; README lists OpenVCL (commit `333fd2c`, not built).
-  - [ ] **Pin ps2dev in the fork's `Dockerfile`.** Requested: `v2.0.0`. Finding: that tag's DVP toolchain does not build `openvcl`/`masp` (added to `main` later; OpenVCL `v0.4.0` tagged 2026-05-18), so a `v2.0.0` pin would break the port. Options: pin a later `main` state, build `openvcl` v0.4.0 explicitly on top of `v2.0.0`, or derive from the official `ps2dev/ps2dev` image by digest (as `docker/Dockerfile.modern` does; about 1 minute instead of about an hour). Awaiting a decision.
+  - [x] Fork README lists OpenVCL instead of Sony VCL, and the Dockerfile no longer downloads `assets/vcl` (commit `333fd2c`).
+  - [x] Fork `Dockerfile` now derives from the official `ps2dev/ps2dev` image pinned by digest plus `vclpp` (commit `0031aeb`). Tested: the engine and tutorials 01 and 05 build from a clean copy with only that image. (A pin to ps2dev `v2.0.0` was rejected: that tag does not build `openvcl`.)
   - [ ] In the fork, still to update: CI workflows, `template/`, docs; decide on pushing.
   - [ ] Have a colleague review `vu_macros.i` against the VU manual (see `docs/tyra-port-notes.md`, question 6).
   - [ ] Other OpenVCL forks (glampert, Ziemas, fjtrujy, playstation2-development) were not compared; `ps2dev/openvcl` v0.4.0 is what ps2dev ships (`ps2toolchain-dvp` config: `ps2dev/openvcl` v0.4.0, `ps2dev/masp` v0.1.16, `dvp-v2.45.1`).
