@@ -1,0 +1,6 @@
+# Build output
+obj/
+bin/
+
+# Per-machine settings (see impression.local.conf.example)
+impression.local.conf

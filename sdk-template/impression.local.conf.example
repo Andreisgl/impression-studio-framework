@@ -1,0 +1,15 @@
+# Created automatically as impression.local.conf (which .gitignore excludes) the
+# first time imp build/run/clean/shell touches this project. Edit it and fill in
+# the values below. Settings here are per machine, not part of the project.
+# One KEY=VALUE per line, '#' starts a comment. Values may be quoted.
+# An environment variable with the same name overrides the file for one run.
+
+# Path to PCSX2: either the executable or the folder that contains it. PCSX2 runs on
+# the host, not in the container, so this is always a host setting.
+# Windows:  PCSX2_PATH=C:\Program Files\PCSX2_2.6.3
+# Linux:    PCSX2_PATH=/opt/pcsx2/pcsx2-qt
+PCSX2_PATH=
+
+# Optional extra command-line flags passed to PCSX2 before the ELF,
+# split on whitespace (no quoting). Example: PCSX2_ARGS=-batch
+PCSX2_ARGS=
