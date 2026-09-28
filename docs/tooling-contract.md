@@ -44,7 +44,7 @@ what a real SDK end user (no checkout of this repo) would use — see the TODO.
 | Build a project completely (Tyra, framework, project) | `build-project [project]` |
 | Run a project's ELF in PCSX2 on the host | `run-project [project] [--build] [--restart] [--wait] [--dry-run]` (PowerShell: `-Build -Restart -Wait -DryRun`) |
 | Raw make in the project folder | `make [make args]` |
-| Container and engine management | `imp [-p project] start\|stop\|restart\|status\|shell\|rebuild-image\|build\|clean\|build-engine\|clean-engine\|build-framework\|clean-framework` |
+| Container and engine management | `imp [-p project] start\|stop\|restart\|status\|shell\|rebuild-image\|build\|clean\|build-engine\|clean-engine\|build-framework\|clean-framework\|sync-ide` |
 
 ## Exit codes
 

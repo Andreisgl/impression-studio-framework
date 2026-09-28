@@ -11,6 +11,9 @@
 #   shell              open a shell in the toolchain container
 #   pull               pull the latest SDK image
 #   status             show whether the container is running
+#   sync-ide           (re)generate .vscode/c_cpp_properties.json so IntelliSense
+#                      resolves <tyra> and <impression/...>; re-run after an
+#                      image update
 # The project is -p <folder>, else the current directory. Exit codes: 0 ok,
 # 1 build/launch failed, 2 usage, 3 environment (docker, or no PCSX2_PATH to run).
 set -euo pipefail
@@ -253,7 +256,7 @@ while [ "$#" -gt 0 ]; do
             shift 2
             ;;
         -h | --help)
-            sed -n '5,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '5,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *) break ;;
@@ -275,6 +278,11 @@ case "$command" in
         resolve_project "$project_arg"
         ensure_container
         docker exec -it -w /project "$CONTAINER" bash
+        ;;
+    sync-ide)
+        resolve_project "$project_arg"
+        ensure_container
+        container_imp sync-ide
         ;;
     pull)
         need_docker

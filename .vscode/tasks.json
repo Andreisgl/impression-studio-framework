@@ -127,6 +127,27 @@
       }
     },
     {
+      "label": "Impression: sync IDE (IntelliSense)",
+      "type": "shell",
+      "command": "scripts/imp.sh",
+      "args": [
+        "sync-ide"
+      ],
+      "windows": {
+        "command": "scripts\\imp.cmd",
+        "args": [
+          "sync-ide"
+        ]
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "detail": "Copies Tyra/framework/toolchain headers into the project and (re)generates .vscode/c_cpp_properties.json. Run once, and again after a toolchain or Tyra update."
+    },
+    {
       "label": "Impression: start container",
       "type": "shell",
       "command": "scripts/imp.sh",

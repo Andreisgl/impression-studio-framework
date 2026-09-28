@@ -38,6 +38,15 @@ run. It's gitignored: this setting is per machine.
 ships a tiny working sample (`hello_game.hpp/.cpp`, `main.cpp`) so the above
 commands work out of the box — replace it with your own game.
 
+## IntelliSense
+
+Run `./imp.sh sync-ide` (`imp sync-ide` on Windows) once, and again after an
+SDK image update. It copies the exact Tyra/framework/toolchain headers this
+project builds against into `.impression/include/` and generates
+`.vscode/c_cpp_properties.json` to match — no manual header download, and no
+host paths to hand-edit. Both directories are gitignored; re-run the command
+instead of committing them.
+
 ## Logging
 
 Games log through `<impression/log.hpp>` (`IMP_LOG(Category, Level, "format", ...)`):

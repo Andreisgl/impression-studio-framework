@@ -10,6 +10,9 @@
 #   shell              open a shell in the toolchain container
 #   pull               pull the latest SDK image
 #   status             show whether the container is running
+#   sync-ide           (re)generate .vscode/c_cpp_properties.json so IntelliSense
+#                      resolves <tyra> and <impression/...>; re-run after an
+#                      image update
 # The project is -p <folder>, else the current directory. Exit codes: 0 ok,
 # 1 build/launch failed, 2 usage, 3 environment (docker, or no PCSX2_PATH to run).
 $ErrorActionPreference = 'Continue'  # native stderr must not abort; exit codes are checked
@@ -258,6 +261,11 @@ switch ($command) {
         $projectAbs = Resolve-ImpressionProject $projectArg
         Confirm-Container $projectAbs
         docker exec -it -w /project $script:Container bash
+    }
+    'sync-ide' {
+        $projectAbs = Resolve-ImpressionProject $projectArg
+        Confirm-Container $projectAbs
+        Invoke-ContainerImp sync-ide
     }
     'pull' {
         Assert-Docker

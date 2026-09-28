@@ -7,6 +7,8 @@
 #   build | clean | make [args]                  act on the project
 #   build-engine | clean-engine                  Tyra's engine library
 #   build-framework | clean-framework            the framework library
+#   sync-ide                                     (re)generate the project's
+#                                                 IntelliSense config
 # The container is started automatically when a command needs it. The project is
 # -p <folder>, else the PROJECT_DIR environment variable, else project/.
 # Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment. docs/tooling-contract.md
@@ -25,7 +27,7 @@ while ($rest.Count -gt 0) {
         $projectArg = $rest[1]
         $rest = @($rest | Select-Object -Skip 2)
     } elseif ($rest[0] -in '-h', '-help', '--help') {
-        Get-Content $PSCommandPath -TotalCount 12 | Select-Object -Skip 3 | ForEach-Object { $_ -replace '^# ?', '' }
+        Get-Content $PSCommandPath -TotalCount 14 | Select-Object -Skip 3 | ForEach-Object { $_ -replace '^# ?', '' }
         exit 0
     } else {
         break
@@ -53,7 +55,7 @@ switch ($command) {
         docker rmi $script:Image *> $null
         Confirm-Images
     }
-    { $_ -in 'start', 'restart', 'shell', 'build', 'clean', 'make', 'build-engine', 'clean-engine', 'build-framework', 'clean-framework' } {
+    { $_ -in 'start', 'restart', 'shell', 'build', 'clean', 'make', 'build-engine', 'clean-engine', 'build-framework', 'clean-framework', 'sync-ide' } {
         $projectAbs = Resolve-ImpressionProject $projectArg
         Get-ProjectConfig $projectAbs | Out-Null  # side effect: creates impression.local.conf if missing
         Assert-Docker

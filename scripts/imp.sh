@@ -8,6 +8,8 @@
 #   build | clean | make [args]                  act on the project
 #   build-engine | clean-engine                  Tyra's engine library
 #   build-framework | clean-framework            the framework library
+#   sync-ide                                     (re)generate the project's
+#                                                 IntelliSense config
 # The container is started automatically when a command needs it. The project is
 # -p <folder>, else the PROJECT_DIR environment variable, else project/.
 # Exit codes: 0 ok, 1 build failed, 2 usage, 3 environment. docs/tooling-contract.md
@@ -25,7 +27,7 @@ while [ "$#" -gt 0 ]; do
             shift 2
             ;;
         -h | --help)
-            sed -n '5,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '5,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *) break ;;
@@ -52,7 +54,7 @@ case "$command" in
         docker rmi "$IMAGE" >/dev/null 2>&1 || true
         ensure_images
         ;;
-    start | restart | shell | build | clean | make | build-engine | clean-engine | build-framework | clean-framework)
+    start | restart | shell | build | clean | make | build-engine | clean-engine | build-framework | clean-framework | sync-ide)
         resolve_project "$project_arg"
         load_project_config
         need_docker

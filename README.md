@@ -67,6 +67,13 @@ engine commands `build-engine`, `clean-engine`, `build-framework`,
 `clean-framework`, plus `make [args]` for raw make in the project. Run
 `scripts/imp.sh --help`.
 
+**IntelliSense.** Run `scripts/imp.sh sync-ide` (`scripts\imp.cmd sync-ide` on
+Windows, or the VS Code task "Impression: sync IDE (IntelliSense)") once per
+project, and again after a toolchain or Tyra update. It copies the exact
+Tyra/framework/toolchain headers this project builds against into
+`<project>/.impression/include/` and generates `<project>/.vscode/c_cpp_properties.json`
+to match — no manual download, and no host paths to hand-edit.
+
 These scripts are also the interface the future GUI editor uses; exit codes and
 output lines are specified in [docs/tooling-contract.md](docs/tooling-contract.md).
 
